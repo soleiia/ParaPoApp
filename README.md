@@ -2,6 +2,9 @@
 
 🚍 The app is integrated with a Map API, showing the location of the user, transportation terminals they can go to, what public transportation they need to ride, and the fare.
 
+🗺️ This app only shows the routes and terminals in Cabuyao, Laguna. Other routes and terminals are not included in the database.
+
 📲 The app is built with flutter, and can be accessed in both android and IOS platforms.
 
-Para po, ano tara?
+
+- I1202 Group 6
