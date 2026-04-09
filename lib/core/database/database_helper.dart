@@ -16,7 +16,8 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDb() async {
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    if (!kIsWeb &&
+        (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
@@ -65,42 +66,140 @@ class DatabaseHelper {
 
   Future<void> _seedData(Database db) async {
     for (final t in [
-      {'name': 'Metra Electric',                  'fare': 2.25, 'active': 1, 'emoji': '🚊'},
-      {'name': 'CTA Bus #151',                    'fare': 2.50, 'active': 0, 'emoji': '🚌'},
-      {'name': 'Pace Bus #755',                   'fare': 3.00, 'active': 1, 'emoji': '🚍'},
-      {'name': 'Chicago Water Taxi',              'fare': 8.00, 'active': 1, 'emoji': '⛴️'},
-      {'name': 'Divvy Bike Share',                'fare': 3.00, 'active': 1, 'emoji': '🚲'},
-      {'name': 'Chicago Transit Authority (CTA)', 'fare': 2.50, 'active': 1, 'emoji': '🚇'},
-      {'name': 'Zipcar Car Share',                'fare': 6.00, 'active': 1, 'emoji': '🚗'},
-    ]) { await db.insert('transportation', t); }
+      {'name': 'Jeepney', 'fare': 13.00, 'active': 1, 'emoji': '🚙'},
+      {'name': 'Tricycle', 'fare': 17.00, 'active': 1, 'emoji': '🛺'},
+    ]) {
+      await db.insert('transportation', t);
+    }
 
     for (final r in [
-      {'origin': 'New York',      'destination': 'Los Angeles',   'fare': 5.00},
-      {'origin': 'Los Angeles',   'destination': 'Chicago',       'fare': 8.00},
-      {'origin': 'Chicago',       'destination': 'New York',      'fare': 10.00},
-      {'origin': 'San Francisco', 'destination': 'Miami',         'fare': 6.00},
-      {'origin': 'Miami',         'destination': 'Houston',       'fare': 9.00},
-      {'origin': 'Houston',       'destination': 'San Francisco', 'fare': 12.00},
-      {'origin': 'Boston',        'destination': 'Seattle',       'fare': 7.00},
-      {'origin': 'Seattle',       'destination': 'Denver',        'fare': 5.50},
-    ]) { await db.insert('routes', r); }
+      {
+        'origin': 'ANYWHERE ON AH-26',
+        'destination': 'ANYWHERE ON AH-26',
+        'fare': 13.00
+      },
+      {
+        'origin': 'ANYWHERE ON AH-26',
+        'destination': 'Pulo Diezmo Road Tricycle Station',
+        'fare': 13.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Cabuyao Coliseum',
+        'fare': 15.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'San Carlos Village',
+        'fare': 15.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Villa Adelina Subdivision',
+        'fare': 15.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Unilever/JJ',
+        'fare': 17.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Lazada Warehouse',
+        'fare': 17.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Mapua Malayan Colleges of Laguna',
+        'fare': 17.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Ninja Van Sta. Elena',
+        'fare': 17.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Gate 1',
+        'fare': 19.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Gate 2',
+        'fare': 17.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Gate 3',
+        'fare': 19.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Ilaya',
+        'fare': 22.00
+      },
+      {
+        'origin': 'Pulo Diezmo Road Tricycle Terminal',
+        'destination': 'Diezmo',
+        'fare': 25.00
+      },
+    ]) {
+      await db.insert('routes', r);
+    }
 
     for (final t in [
-      {'category': 'COFFEE SHOP',          'name': 'Coffee Shop',         'description': 'Located at the corner of 5th and Main.',                     'emoji': '☕'},
-      {'category': 'LIBRARY',              'name': 'Library',             'description': 'Features a wide selection of books and a quiet reading room.', 'emoji': '📚'},
-      {'category': 'CITY HALL',            'name': 'City Hall',           'description': 'Home to city council meetings and administrative offices.',     'emoji': '🏛️'},
-      {'category': 'UNIVERSITY CAFETERIA', 'name': 'University Cafeteria','description': 'Serves a variety of international cuisines and hosts events.', 'emoji': '🍽️'},
-      {'category': 'MUSEUM',               'name': 'Museum',              'description': 'Features rotating exhibits and educational programs.',          'emoji': '🏺'},
-      {'category': 'COMMUNITY CENTER',     'name': 'Community Center',    'description': 'Hosts events, classes, and community gatherings.',             'emoji': '🏢'},
-    ]) { await db.insert('terminals', t); }
+      {
+        'category': 'COFFEE SHOP',
+        'name': 'Coffee Shop',
+        'description': 'Located at the corner of 5th and Main.',
+        'emoji': '☕'
+      },
+      {
+        'category': 'LIBRARY',
+        'name': 'Library',
+        'description':
+            'Features a wide selection of books and a quiet reading room.',
+        'emoji': '📚'
+      },
+      {
+        'category': 'CITY HALL',
+        'name': 'City Hall',
+        'description':
+            'Home to city council meetings and administrative offices.',
+        'emoji': '🏛️'
+      },
+      {
+        'category': 'UNIVERSITY CAFETERIA',
+        'name': 'University Cafeteria',
+        'description':
+            'Serves a variety of international cuisines and hosts events.',
+        'emoji': '🍽️'
+      },
+      {
+        'category': 'MUSEUM',
+        'name': 'Museum',
+        'description': 'Features rotating exhibits and educational programs.',
+        'emoji': '🏺'
+      },
+      {
+        'category': 'COMMUNITY CENTER',
+        'name': 'Community Center',
+        'description': 'Hosts events, classes, and community gatherings.',
+        'emoji': '🏢'
+      },
+    ]) {
+      await db.insert('terminals', t);
+    }
 
     for (final z in [
-      {'name': 'Zone A - Downtown',   'color_hex': 'FF3B6FE0', 'stop_count': 12},
-      {'name': 'Zone B - Midtown',    'color_hex': 'FF43A047', 'stop_count': 8},
-      {'name': 'Zone C - Uptown',     'color_hex': 'FFE53935', 'stop_count': 6},
-      {'name': 'Zone D - Suburbs',    'color_hex': 'FFFFC200', 'stop_count': 15},
+      {'name': 'Zone A - Downtown', 'color_hex': 'FF3B6FE0', 'stop_count': 12},
+      {'name': 'Zone B - Midtown', 'color_hex': 'FF43A047', 'stop_count': 8},
+      {'name': 'Zone C - Uptown', 'color_hex': 'FFE53935', 'stop_count': 6},
+      {'name': 'Zone D - Suburbs', 'color_hex': 'FFFFC200', 'stop_count': 15},
       {'name': 'Zone E - Industrial', 'color_hex': 'FF8E24AA', 'stop_count': 4},
-    ]) { await db.insert('zones', z); }
+    ]) {
+      await db.insert('zones', z);
+    }
   }
 
   Future<List<Map<String, dynamic>>> queryAll(String table) async {
@@ -123,8 +222,10 @@ class DatabaseHelper {
     return db.delete(table, where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<Map<String, dynamic>>> search(String table, String column, String query) async {
+  Future<List<Map<String, dynamic>>> search(
+      String table, String column, String query) async {
     final db = await database;
-    return db.query(table, where: '$column LIKE ?', whereArgs: ['%$query%'], orderBy: 'id ASC');
+    return db.query(table,
+        where: '$column LIKE ?', whereArgs: ['%$query%'], orderBy: 'id ASC');
   }
 }
