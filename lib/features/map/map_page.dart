@@ -3,6 +3,10 @@ import 'dart:math' as math;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:para_po/core/theme/app_theme.dart';
 import 'package:para_po/shared/widgets/widgets.dart';
+import 'package:provider/provider.dart';
+import 'package:para_po/providers/fare_provider.dart';
+import 'package:para_po/shared/widgets/fare_badge.dart';
+import 'package:para_po/shared/widgets/passenger_type_selector.dart';
 
 // Default center: Cabuyao, Laguna, Philippines
 const _kCabuyao = LatLng(14.2738, 121.1251);
@@ -15,16 +19,16 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final _fromCtrl = TextEditingController();
-  final _toCtrl   = TextEditingController();
+  final _toCtrl = TextEditingController();
 
   GoogleMapController? _mapController;
-  bool _showSheet  = false;
+  bool _showSheet = false;
   bool _navigating = false;
-  double _fare    = 0;
-  int    _minutes = 0;
+  double _fare = 0;
+  int _minutes = 0;
 
   // Map state
-  final Set<Marker>   _markers   = {};
+  final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
   MapType _mapType = MapType.normal;
 
@@ -56,18 +60,18 @@ class _MapPageState extends State<MapPage> {
     // For now we simulate a route with two markers.
     final rng = math.Random();
     final pointA = LatLng(
-      _kCabuyao.latitude  + (rng.nextDouble() - 0.5) * 0.02,
+      _kCabuyao.latitude + (rng.nextDouble() - 0.5) * 0.02,
       _kCabuyao.longitude + (rng.nextDouble() - 0.5) * 0.02,
     );
     final pointB = LatLng(
-      _kCabuyao.latitude  + (rng.nextDouble() - 0.5) * 0.02,
+      _kCabuyao.latitude + (rng.nextDouble() - 0.5) * 0.02,
       _kCabuyao.longitude + (rng.nextDouble() - 0.5) * 0.02,
     );
 
     setState(() {
-      _fare    = 13.0 + (rng.nextDouble() * 15);
+      _fare = 13.0 + (rng.nextDouble() * 15);
       _minutes = 2 + rng.nextInt(20);
-      _showSheet  = true;
+      _showSheet = true;
       _navigating = false;
 
       // Place markers
@@ -78,13 +82,15 @@ class _MapPageState extends State<MapPage> {
             markerId: const MarkerId('pointA'),
             position: pointA,
             infoWindow: InfoWindow(title: 'Point A', snippet: _fromCtrl.text),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+            icon:
+                BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
           ),
           Marker(
             markerId: const MarkerId('pointB'),
             position: pointB,
             infoWindow: InfoWindow(title: 'Point B', snippet: _toCtrl.text),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueYellow),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueYellow),
           ),
         ]);
 
@@ -106,11 +112,11 @@ class _MapPageState extends State<MapPage> {
       CameraUpdate.newLatLngBounds(
         LatLngBounds(
           southwest: LatLng(
-            math.min(pointA.latitude,  pointB.latitude),
+            math.min(pointA.latitude, pointB.latitude),
             math.min(pointA.longitude, pointB.longitude),
           ),
           northeast: LatLng(
-            math.max(pointA.latitude,  pointB.latitude),
+            math.max(pointA.latitude, pointB.latitude),
             math.max(pointA.longitude, pointB.longitude),
           ),
         ),
@@ -123,7 +129,10 @@ class _MapPageState extends State<MapPage> {
     setState(() => _navigating = true);
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
-      setState(() { _navigating = false; _showSheet = false; });
+      setState(() {
+        _navigating = false;
+        _showSheet = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🚌 Navigation started! Enjoy your ride.'),
@@ -135,7 +144,8 @@ class _MapPageState extends State<MapPage> {
 
   void _toggleMapType() {
     setState(() {
-      _mapType = _mapType == MapType.normal ? MapType.satellite : MapType.normal;
+      _mapType =
+          _mapType == MapType.normal ? MapType.satellite : MapType.normal;
     });
   }
 
@@ -160,33 +170,43 @@ class _MapPageState extends State<MapPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(children: [
                 const Text('Cabuyao',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 22)),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22)),
                 const Spacer(),
                 // Map type toggle
                 GestureDetector(
                   onTap: _toggleMapType,
                   child: Container(
-                    width: 36, height: 36,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10)),
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10)),
                     child: Icon(
-                      _mapType == MapType.normal ? Icons.satellite_alt : Icons.map,
-                      color: Colors.white, size: 20),
+                        _mapType == MapType.normal
+                            ? Icons.satellite_alt
+                            : Icons.map,
+                        color: Colors.white,
+                        size: 20),
                   ),
                 ),
                 const SizedBox(width: 8),
                 // Filter
                 GestureDetector(
                   onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Filter coming soon'),
-                      backgroundColor: AppColors.blue)),
+                      const SnackBar(
+                          content: Text('Filter coming soon'),
+                          backgroundColor: AppColors.blue)),
                   child: Container(
-                    width: 36, height: 36,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.tune, color: Colors.white, size: 20),
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10)),
+                    child:
+                        const Icon(Icons.tune, color: Colors.white, size: 20),
                   ),
                 ),
               ]),
@@ -213,58 +233,95 @@ class _MapPageState extends State<MapPage> {
             ),
 
             // ── Route input card ─────────────────────────────────────────
-            Positioned(top: 16, left: 16, right: 16,
+            Positioned(
+              top: 16,
+              left: 16,
+              right: 16,
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.96),
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 16, offset: const Offset(0, 4))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4))
+                  ],
                 ),
                 child: Column(children: [
                   // Point A
                   Row(children: [
-                    Container(width: 10, height: 10,
-                      decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle)),
+                    Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                            color: AppColors.blue, shape: BoxShape.circle)),
                     const SizedBox(width: 10),
-                    Expanded(child: TextField(
+                    Expanded(
+                        child: TextField(
                       controller: _fromCtrl,
                       decoration: const InputDecoration(
                         hintText: 'INPUT POINT A',
-                        hintStyle: TextStyle(color: AppColors.textLight, fontSize: 12,
-                          fontWeight: FontWeight.w600, letterSpacing: 0.5),
-                        border: OutlineInputBorder(borderSide: BorderSide(color: AppColors.lightGrey)),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.lightGrey)),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.blue, width: 1.5)),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        hintStyle: TextStyle(
+                            color: AppColors.textLight,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5),
+                        border: OutlineInputBorder(
+                            borderSide: BorderSide(color: AppColors.lightGrey)),
+                        enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: AppColors.lightGrey)),
+                        focusedBorder: OutlineInputBorder(
+                            borderSide:
+                                BorderSide(color: AppColors.blue, width: 1.5)),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         isDense: true,
                       ),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textDark),
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textDark),
                     )),
                   ]),
                   const SizedBox(height: 10),
                   // Point B
                   Row(children: [
-                    Container(width: 10, height: 10,
-                      decoration: BoxDecoration(
-                        color: AppColors.yellow, shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.yellowDark, width: 1.5))),
+                    Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                            color: AppColors.yellow,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: AppColors.yellowDark, width: 1.5))),
                     const SizedBox(width: 10),
-                    Expanded(child: TextField(
+                    Expanded(
+                        child: TextField(
                       controller: _toCtrl,
                       decoration: const InputDecoration(
                         hintText: 'INPUT POINT B',
-                        hintStyle: TextStyle(color: AppColors.textLight, fontSize: 12,
-                          fontWeight: FontWeight.w600, letterSpacing: 0.5),
-                        border: OutlineInputBorder(borderSide: BorderSide(color: AppColors.lightGrey)),
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.lightGrey)),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppColors.blue, width: 1.5)),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        hintStyle: TextStyle(
+                            color: AppColors.textLight,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5),
+                        border: OutlineInputBorder(
+                            borderSide: BorderSide(color: AppColors.lightGrey)),
+                        enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(color: AppColors.lightGrey)),
+                        focusedBorder: OutlineInputBorder(
+                            borderSide:
+                                BorderSide(color: AppColors.blue, width: 1.5)),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         isDense: true,
                       ),
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textDark),
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textDark),
                     )),
                   ]),
                 ]),
@@ -278,15 +335,20 @@ class _MapPageState extends State<MapPage> {
               child: GestureDetector(
                 onTap: _myLocation,
                 child: Container(
-                  width: 44, height: 44,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 8, offset: const Offset(0, 2))],
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2))
+                    ],
                   ),
-                  child: const Icon(Icons.my_location, color: AppColors.blue, size: 22),
+                  child: const Icon(Icons.my_location,
+                      color: AppColors.blue, size: 22),
                 ),
               ),
             ),
@@ -298,17 +360,24 @@ class _MapPageState extends State<MapPage> {
               child: GestureDetector(
                 onTap: _startNavigation,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
                   decoration: BoxDecoration(
                     color: AppColors.blue,
                     borderRadius: BorderRadius.circular(30),
-                    boxShadow: [BoxShadow(
-                      color: AppColors.blue.withValues(alpha: 0.4),
-                      blurRadius: 16, offset: const Offset(0, 6))],
+                    boxShadow: [
+                      BoxShadow(
+                          color: AppColors.blue.withValues(alpha: 0.4),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6))
+                    ],
                   ),
                   child: const Text('START NAVIGATION',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700,
-                      fontSize: 13, letterSpacing: 0.8)),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          letterSpacing: 0.8)),
                 ),
               ),
             ),
@@ -318,21 +387,210 @@ class _MapPageState extends State<MapPage> {
 
       // ── Route result sheet ────────────────────────────────────────────────
       if (_showSheet)
-        Positioned(bottom: 0, left: 0, right: 0,
-          child: _RouteSheet(
-            fare: _fare,
-            minutes: _minutes,
-            from: _fromCtrl.text,
-            to: _toCtrl.text,
-            navigating: _navigating,
-            onClose:   () => setState(() { _showSheet = false; _markers.clear(); _polylines.clear(); }),
-            onConfirm: _confirmRoute,
-            onShare: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Route shared!'), backgroundColor: AppColors.blue)),
-            onSave: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Route saved!'), backgroundColor: AppColors.blue)),
-          )),
+        Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _RouteSheet(
+              fare: _fare,
+              minutes: _minutes,
+              from: _fromCtrl.text,
+              to: _toCtrl.text,
+              navigating: _navigating,
+              onClose: () => setState(() {
+                _showSheet = false;
+                _markers.clear();
+                _polylines.clear();
+              }),
+              onConfirm: _confirmRoute,
+              onShare: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Route shared!'),
+                      backgroundColor: AppColors.blue)),
+              onSave: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Route saved!'),
+                      backgroundColor: AppColors.blue)),
+            )),
     ]);
+  }
+}
+
+void showRouteBottomSheet(
+  BuildContext context, {
+  required String origin,
+  required String destination,
+  required double baseFare,
+  required String transportType,
+  String via = '',
+}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) {
+      // Re-expose the FareProvider into the bottom sheet's BuildContext.
+      return ChangeNotifierProvider.value(
+        value: context.read<FareProvider>(),
+        child: _RouteBottomSheet(
+          origin: origin,
+          destination: destination,
+          baseFare: baseFare,
+          transportType: transportType,
+          via: via,
+        ),
+      );
+    },
+  );
+}
+
+class _RouteBottomSheet extends StatelessWidget {
+  final String origin;
+  final String destination;
+  final double baseFare;
+  final String transportType;
+  final String via;
+
+  const _RouteBottomSheet({
+    required this.origin,
+    required this.destination,
+    required this.baseFare,
+    required this.transportType,
+    required this.via,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final fareProvider = context.watch<FareProvider>();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: colorScheme.outlineVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // Header row: transport type + compact passenger toggle
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  transportType,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+              const Spacer(),
+              // ── Compact passenger type toggle ──
+              const PassengerTypeSelector(compact: true),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Route
+          Text(origin,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Icon(Icons.arrow_downward,
+                    size: 14, color: colorScheme.primary),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    destination,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (via.isNotEmpty)
+            Text(
+              'via $via',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                  ),
+            ),
+          const SizedBox(height: 20),
+
+          // Fare row
+          Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    fareProvider.isDiscounted ? 'Discounted fare' : 'Fare',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                  // ── FareBadge reacts to provider change ──
+                  FareBadge(baseFare: baseFare, large: true),
+                ],
+              ),
+              const Spacer(),
+              if (fareProvider.isDiscounted)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colorScheme.tertiaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.info_outline,
+                          size: 14, color: colorScheme.tertiary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Show valid ID to driver',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: colorScheme.tertiary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -345,11 +603,15 @@ class _RouteSheet extends StatelessWidget {
   final VoidCallback onClose, onConfirm, onShare, onSave;
 
   const _RouteSheet({
-    required this.fare, required this.minutes,
-    required this.from,  required this.to,
+    required this.fare,
+    required this.minutes,
+    required this.from,
+    required this.to,
     required this.navigating,
-    required this.onClose, required this.onConfirm,
-    required this.onShare, required this.onSave,
+    required this.onClose,
+    required this.onConfirm,
+    required this.onShare,
+    required this.onSave,
   });
 
   @override
@@ -363,70 +625,108 @@ class _RouteSheet extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 12),
-          Center(child: Container(width: 40, height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(2)))),
+          Center(
+              child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 12),
-
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('$minutes min',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 22)),
-              Container(height: 1, width: 140, color: Colors.white38,
-                margin: const EdgeInsets.symmetric(vertical: 4)),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 22)),
+              Container(
+                  height: 1,
+                  width: 140,
+                  color: Colors.white38,
+                  margin: const EdgeInsets.symmetric(vertical: 4)),
               const Text('Transportation',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14)),
             ]),
-            GestureDetector(onTap: onClose,
-              child: Container(width: 34, height: 34,
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                child: const Center(child: Text('✕',
-                  style: TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w800, fontSize: 13))))),
+            GestureDetector(
+                onTap: onClose,
+                child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle),
+                    child: const Center(
+                        child: Text('✕',
+                            style: TextStyle(
+                                color: AppColors.textDark,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13))))),
           ]),
-
           const SizedBox(height: 14),
-
           Row(children: [
-            Container(width: 62, height: 62,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(16)),
-              child: const Stack(alignment: Alignment.center, children: [
-                SizedBox(width: 58, height: 58, child: CustomPaint(painter: SunPainter())),
-                Text('🚌', style: TextStyle(fontSize: 28)),
-              ])),
+            Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(16)),
+                child: const Stack(alignment: Alignment.center, children: [
+                  SizedBox(
+                      width: 58,
+                      height: 58,
+                      child: CustomPaint(painter: SunPainter())),
+                  Text('🚌', style: TextStyle(fontSize: 28)),
+                ])),
             const Spacer(),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              const Text('Fare', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              const Text('Fare',
+                  style: TextStyle(color: Colors.white70, fontSize: 13)),
               Text('₱ ${fare.toStringAsFixed(2)}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 22)),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 22)),
             ]),
           ]),
-
           const SizedBox(height: 8),
           Row(children: [
             const Icon(Icons.circle, color: Colors.white54, size: 8),
             const SizedBox(width: 6),
-            Expanded(child: Text(from,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-              overflow: TextOverflow.ellipsis)),
-            const Padding(padding: EdgeInsets.symmetric(horizontal: 6),
-              child: Icon(Icons.arrow_forward, color: Colors.white38, size: 14)),
-            Expanded(child: Text(to,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-              overflow: TextOverflow.ellipsis)),
+            Expanded(
+                child: Text(from,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    overflow: TextOverflow.ellipsis)),
+            const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child:
+                    Icon(Icons.arrow_forward, color: Colors.white38, size: 14)),
+            Expanded(
+                child: Text(to,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    overflow: TextOverflow.ellipsis)),
           ]),
-
           const SizedBox(height: 16),
           Row(children: [
-            Expanded(child: YellowBtn(
-              label: navigating ? 'Loading…' : 'Confirm',
-              icon: Icons.check, onTap: onConfirm)),
+            Expanded(
+                child: YellowBtn(
+                    label: navigating ? 'Loading…' : 'Confirm',
+                    icon: Icons.check,
+                    onTap: onConfirm)),
             const SizedBox(width: 8),
-            Expanded(child: YellowBtn(label: 'Share', icon: Icons.share_outlined, onTap: onShare)),
+            Expanded(
+                child: YellowBtn(
+                    label: 'Share',
+                    icon: Icons.share_outlined,
+                    onTap: onShare)),
             const SizedBox(width: 8),
-            Expanded(child: YellowBtn(label: 'Save', icon: Icons.bookmark_outline, onTap: onSave)),
+            Expanded(
+                child: YellowBtn(
+                    label: 'Save',
+                    icon: Icons.bookmark_outline,
+                    onTap: onSave)),
           ]),
         ]),
       ),

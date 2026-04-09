@@ -1,182 +1,168 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:para_po/core/models/models.dart';
-import 'package:para_po/core/repositories/repositories.dart';
-import 'package:para_po/core/theme/app_theme.dart';
-import 'package:para_po/shared/widgets/widgets.dart';
+import 'package:para_po/core/database/database_helper.dart';
+import 'package:para_po/shared/widgets/passenger_type_selector.dart';
+import 'package:para_po/shared/widgets/fare_badge.dart';
 
-class RoutesPage extends StatefulWidget {
-  const RoutesPage({super.key});
+class RoutesScreen extends StatefulWidget {
+  const RoutesScreen({super.key});
+
   @override
-  State<RoutesPage> createState() => _RoutesPageState();
+  State<RoutesScreen> createState() => _RoutesScreenState();
 }
 
-class _RoutesPageState extends State<RoutesPage> {
-  final _repo = RouteRepository();
-  List<RouteModel> _all = [], _filtered = [];
-  bool _loading = true;
-  String _query = '';
+class _RoutesScreenState extends State<RoutesScreen> {
+  List<Map<String, dynamic>> _routes = [];
 
   @override
-  void initState() { super.initState(); _load(); }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    _all = await _repo.getAll();
-    _applyFilter();
-    setState(() => _loading = false);
+  void initState() {
+    super.initState();
+    _loadRoutes();
   }
 
-  void _applyFilter() {
-    _filtered = _query.isEmpty ? List.from(_all)
-        : _all.where((r) =>
-            r.origin.toLowerCase().contains(_query.toLowerCase()) ||
-            r.destination.toLowerCase().contains(_query.toLowerCase())).toList();
-  }
-
-  void _onSearch(String q) => setState(() { _query = q; _applyFilter(); });
-
-  void _showAddDialog() {
-    final originCtrl = TextEditingController();
-    final destCtrl   = TextEditingController();
-    final fareCtrl   = TextEditingController();
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('Add Route', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textDark)),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        buildDialogField(originCtrl, 'Origin'),
-        const SizedBox(height: 10),
-        buildDialogField(destCtrl, 'Destination'),
-        const SizedBox(height: 10),
-        buildDialogField(fareCtrl, 'Fare (₱)', type: TextInputType.number),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppColors.textMid))),
-        TextButton(onPressed: () async {
-          final origin = originCtrl.text.trim();
-          final dest   = destCtrl.text.trim();
-          final fare   = double.tryParse(fareCtrl.text) ?? 0;
-          if (origin.isNotEmpty && dest.isNotEmpty) {
-            await _repo.add(RouteModel(origin: origin, destination: dest, fare: fare));
-            if (ctx.mounted) { Navigator.pop(ctx); await _load(); }
-          }
-        }, child: const Text('Add', style: TextStyle(color: AppColors.blue, fontWeight: FontWeight.w700))),
-      ],
-    ));
-  }
-
-  void _showDetail(RouteModel item) {
-    showModalBottomSheet(context: context, backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const SheetHandle(),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('FROM', style: TextStyle(color: AppColors.textLight, fontSize: 11, letterSpacing: 1)),
-              Text(item.origin, style: const TextStyle(color: AppColors.textDark, fontSize: 20, fontWeight: FontWeight.w800)),
-            ]),
-            Container(padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: AppColors.blue.withValues(alpha: 0.1), shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_forward, color: AppColors.blue)),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              const Text('TO', style: TextStyle(color: AppColors.textLight, fontSize: 11, letterSpacing: 1)),
-              Text(item.destination, style: const TextStyle(color: AppColors.textDark, fontSize: 20, fontWeight: FontWeight.w800)),
-            ]),
-          ]),
-          const SizedBox(height: 16),
-          Container(width: double.infinity, padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(14)),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('Fare', style: TextStyle(color: AppColors.textMid, fontSize: 14)),
-              Text('₱${item.fare.toStringAsFixed(2)}',
-                style: const TextStyle(color: AppColors.blue, fontWeight: FontWeight.w800, fontSize: 20)),
-            ])),
-          const SizedBox(height: 12),
-          Row(children: [
-            Expanded(child: OutlinedButton.icon(
-              icon: const Icon(Icons.edit_outlined, size: 16), label: const Text('Edit'),
-              style: OutlinedButton.styleFrom(foregroundColor: AppColors.blue,
-                side: const BorderSide(color: AppColors.blue),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              onPressed: () { Navigator.pop(context); _showEditDialog(item); })),
-            const SizedBox(width: 12),
-            Expanded(child: OutlinedButton.icon(
-              icon: const Icon(Icons.delete_outline, size: 16), label: const Text('Delete'),
-              style: OutlinedButton.styleFrom(foregroundColor: AppColors.red,
-                side: const BorderSide(color: AppColors.red),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              onPressed: () async {
-                Navigator.pop(context);
-                final confirm = await showDeleteDialog(context, '${item.origin} → ${item.destination}');
-                if (confirm == true) { await _repo.delete(item.id!); await _load(); }
-              })),
-          ]),
-          const SizedBox(height: 12),
-          BlueBtn(label: 'Select This Route', onTap: () {
-            Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${item.origin} → ${item.destination} selected!'), backgroundColor: AppColors.blue));
-          }),
-        ]),
-      ),
-    );
-  }
-
-  void _showEditDialog(RouteModel item) {
-    final originCtrl = TextEditingController(text: item.origin);
-    final destCtrl   = TextEditingController(text: item.destination);
-    final fareCtrl   = TextEditingController(text: item.fare.toString());
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('Edit Route', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.textDark)),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        buildDialogField(originCtrl, 'Origin'),
-        const SizedBox(height: 10),
-        buildDialogField(destCtrl, 'Destination'),
-        const SizedBox(height: 10),
-        buildDialogField(fareCtrl, 'Fare (₱)', type: TextInputType.number),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppColors.textMid))),
-        TextButton(onPressed: () async {
-          await _repo.update(RouteModel(id: item.id, origin: originCtrl.text.trim(),
-            destination: destCtrl.text.trim(), fare: double.tryParse(fareCtrl.text) ?? item.fare));
-          if (ctx.mounted) { Navigator.pop(ctx); await _load(); }
-        }, child: const Text('Save', style: TextStyle(color: AppColors.blue, fontWeight: FontWeight.w700))),
-      ],
-    ));
+  Future<void> _loadRoutes() async {
+    try {
+      // Accessing the singleton instance of your database helper
+      final data = await DatabaseHelper.instance.queryAll('routes');
+      setState(() {
+        _routes = data;
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print("Error loading routes: $e");
+      }
+      // This part is key: if the database is still "rebuilding" on your laptop,
+      // it waits 1 second and tries again instead of showing a red error screen.
+      await Future.delayed(const Duration(seconds: 1));
+      _loadRoutes();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      PageHeader(title: 'Available Routes', onAdd: _showAddDialog, onSearch: _onSearch),
-      Expanded(child: _loading ? const LoadingState() : _filtered.isEmpty ? const EmptyState()
-        : RefreshIndicator(color: AppColors.blue, onRefresh: _load,
-          child: ListView.separated(
-            padding: EdgeInsets.zero,
-            itemCount: _filtered.length,
-            separatorBuilder: (_, __) => const Divider(color: AppColors.divider, height: 1, indent: 16, endIndent: 16),
-            itemBuilder: (_, i) {
-              final r = _filtered[i];
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('₱${r.fare.toStringAsFixed(2)}',
-                    style: const TextStyle(color: AppColors.blue, fontSize: 11, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 2),
-                  Text(r.origin, style: const TextStyle(color: AppColors.textDark, fontWeight: FontWeight.w700, fontSize: 16)),
-                ]),
-                subtitle: Padding(padding: const EdgeInsets.only(top: 2),
-                  child: Text(r.destination, style: const TextStyle(color: AppColors.textMid, fontSize: 14))),
-                trailing: const Icon(Icons.chevron_right, color: AppColors.textLight),
-                onTap: () => _showDetail(r),
-              );
-            },
-          ))),
-    ]);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Routes & Fares')),
+      body: Column(
+        children: [
+          // ── Passenger type selector (full variant) ──
+          const PassengerTypeSelector(),
+
+          // ── Routes list ──
+          Expanded(
+            child: ListView.builder(
+              itemCount: _routes.length,
+              itemBuilder: (context, index) {
+                final route = _routes[index];
+                return _RouteCard(route: route);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RouteCard extends StatelessWidget {
+  final Map<String, dynamic> route;
+
+  const _RouteCard({required this.route});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final baseFare = (route['fare'] as num).toDouble();
+    final transportType = route['transport_type'] as String? ?? 'Jeepney';
+    final via = route['via'] as String? ?? '';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // Transport icon
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  _emojiForTransport(transportType),
+                  style: const TextStyle(fontSize: 20),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Route info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    route['origin'] as String,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Row(
+                    children: [
+                      Icon(Icons.arrow_downward,
+                          size: 12, color: colorScheme.primary),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          route['destination'] as String,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (via.isNotEmpty)
+                    Text(
+                      'via $via',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontStyle: FontStyle.italic,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+
+            // Fare badge — reacts to FareProvider automatically
+            FareBadge(baseFare: baseFare),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _emojiForTransport(String type) {
+    if (type.contains('Tricycle')) return '🛺';
+    if (type.contains('Modern')) return '🚌';
+    if (type.contains('Jeepney')) return '🚙';
+    if (type.contains('UV') || type.contains('Van')) return '🚐';
+    if (type.contains('Bus')) return '🚍';
+    if (type.contains('PNR') || type.contains('Train')) return '🚆';
+    return '🚌';
   }
 }
