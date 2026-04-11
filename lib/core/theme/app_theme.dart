@@ -7,6 +7,8 @@ class AppColors {
   static const yellow     = Color(0xFFFFC200);
   static const yellowDark = Color(0xFFE6A800);
   static const red        = Color(0xFFE53935);
+  static const green      = Color(0xFF2E7D32);
+  static const greenLight = Color(0xFFE8F5E9);
   static const white      = Color(0xFFFFFFFF);
   static const offWhite   = Color(0xFFF5F7FA);
   static const lightGrey  = Color(0xFFE8ECF2);
@@ -24,15 +26,5 @@ class AppTheme {
       brightness: Brightness.light,
     ),
     scaffoldBackgroundColor: AppColors.offWhite,
-    fontFamily: 'Helvetica Neue',
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: AppColors.offWhite,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    ),
   );
 }

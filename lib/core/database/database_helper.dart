@@ -6,7 +6,6 @@ import 'package:path/path.dart';
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._internal();
   static Database? _db;
-
   DatabaseHelper._internal();
 
   Future<Database> get database async {
@@ -22,765 +21,391 @@ class DatabaseHelper {
       databaseFactory = databaseFactoryFfi;
     }
     final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'para_po.db');
-    return await openDatabase(
-      path,
-      version: 2,
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-    );
-  }
-
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Drop everything and rebuild fresh on any version change.
-    await db.execute('DROP TABLE IF EXISTS transportation');
-    await db.execute('DROP TABLE IF EXISTS routes');
-    await db.execute('DROP TABLE IF EXISTS terminals');
-    await db.execute('DROP TABLE IF EXISTS zones');
-    await _onCreate(db, newVersion);
+    final path = join(dbPath, 'para_po_v3.db');
+    return await openDatabase(path, version: 1, onCreate: _onCreate);
   }
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE transportation (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        fare REAL NOT NULL DEFAULT 0,
-        active INTEGER NOT NULL DEFAULT 1,
-        emoji TEXT NOT NULL DEFAULT '🚌'
+        id      INTEGER PRIMARY KEY AUTOINCREMENT,
+        name    TEXT    NOT NULL,
+        fare    REAL    NOT NULL DEFAULT 0,
+        active  INTEGER NOT NULL DEFAULT 1,
+        emoji   TEXT    NOT NULL DEFAULT '🚌',
+        type    TEXT    NOT NULL DEFAULT 'JEEPNEY'
       )
     ''');
-
     await db.execute('''
       CREATE TABLE routes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        transport_type TEXT NOT NULL DEFAULT 'Jeepney (Traditional)',
-        origin TEXT NOT NULL,
-        destination TEXT NOT NULL,
-        fare REAL NOT NULL DEFAULT 0,
-        via TEXT NOT NULL DEFAULT ''
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        origin           TEXT NOT NULL,
+        destination      TEXT NOT NULL,
+        fare             REAL NOT NULL DEFAULT 0,
+        origin_lat       REAL,
+        origin_lng       REAL,
+        dest_lat         REAL,
+        dest_lng         REAL,
+        transport_type   TEXT NOT NULL DEFAULT 'JEEPNEY'
       )
     ''');
-
     await db.execute('''
       CREATE TABLE terminals (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        category TEXT NOT NULL,
-        name TEXT NOT NULL,
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        category    TEXT NOT NULL,
+        name        TEXT NOT NULL,
         description TEXT NOT NULL DEFAULT '',
-        emoji TEXT NOT NULL DEFAULT '📍'
+        emoji       TEXT NOT NULL DEFAULT '📍',
+        lat         REAL,
+        lng         REAL
       )
     ''');
-
     await db.execute('''
       CREATE TABLE zones (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        color_hex TEXT NOT NULL DEFAULT 'FF3B6FE0',
-        stop_count INTEGER NOT NULL DEFAULT 0
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        color_hex  TEXT    NOT NULL DEFAULT 'FF3B6FE0',
+        stop_count INTEGER NOT NULL DEFAULT 0,
+        barangays  TEXT    NOT NULL DEFAULT ''
       )
     ''');
-
     await _seedData(db);
   }
 
   Future<void> _seedData(Database db) async {
-    // ── TRANSPORTATION TYPES ──────────────────────────────────────────────────
+    // ── Transportation ─────────────────────────────────────────────────────
     for (final t in [
       {
         'name': 'Jeepney (Traditional)',
-        'fare': 14.00,
+        'fare': 15.00,
         'active': 1,
-        'emoji': '🚙'
+        'emoji': '🚌',
+        'type': 'JEEPNEY'
       },
       {
-        'name': 'Jeepney (Modern/E-Jeep)',
+        'name': 'Jeepney (Modern)',
         'fare': 17.00,
         'active': 1,
-        'emoji': '🚌'
+        'emoji': '🚌',
+        'type': 'JEEPNEY'
       },
-      {'name': 'Tricycle', 'fare': 17.00, 'active': 1, 'emoji': '🛺'},
-      {'name': 'UV Express / Van', 'fare': 50.00, 'active': 1, 'emoji': '🚐'},
-      {'name': 'Bus (Ordinary)', 'fare': 35.00, 'active': 1, 'emoji': '🚍'},
-      {'name': 'Bus (Aircon)', 'fare': 55.00, 'active': 1, 'emoji': '🚌'},
-      {'name': 'PNR Train', 'fare': 30.00, 'active': 0, 'emoji': '🚆'},
+      {
+        'name': 'Tricycle (Solo)',
+        'fare': 17.00,
+        'active': 1,
+        'emoji': '🛺',
+        'type': 'TRICYCLE'
+      },
     ]) {
       await db.insert('transportation', t);
     }
 
-    // ── ROUTES ────────────────────────────────────────────────────────────────
-
-    // --- Jeepney: Along AH-26 / National Highway ---
+    // ── Routes ─────────────────────────────────────────────────────────────
+    // Coordinates: origin_lat, origin_lng, dest_lat, dest_lng
+    // Cabuyao Terminal (Sala): 14.2738, 121.1251
+    // Calamba City Terminal:   14.2097, 121.1601
+    // Sta. Rosa City Hall:     14.3122, 121.1122
+    // Biñan City Terminal:     14.3392, 121.0789
+    // Los Baños Terminal:      14.1663, 121.2397
+    // Pasay Bus Terminal:      14.5378, 120.9980
+    // SM Calamba:              14.2134, 121.1568
+    // Cabuyao Market:          14.2756, 121.1234
+    // Bigaa Terminal:          14.2894, 121.1219
+    // Pulo Terminal:           14.2627, 121.1179
+    // Butong Barangay Hall:    14.2651, 121.1098
+    // Mamatid Terminal:        14.2435, 121.1356
+    // Sta. Cruz Laguna:        14.2768, 121.4137
+    // San Pablo City:          14.0688, 121.3224
     for (final r in [
       {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Cabuyao City Hall (Poblacion)',
-        'destination': 'Bigaa Junction',
-        'fare': 14.00,
-        'via': 'National Highway (AH-26)',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Cabuyao City Hall (Poblacion)',
-        'destination': 'Marinig',
-        'fare': 14.00,
-        'via': 'National Highway (AH-26)',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Cabuyao City Hall (Poblacion)',
-        'destination': 'Niugan / Nestlé Gate',
-        'fare': 14.00,
-        'via': 'National Highway (AH-26)',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Cabuyao City Hall (Poblacion)',
-        'destination': 'Pittland / LISP I',
-        'fare': 14.00,
-        'via': 'National Highway (AH-26)',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Cabuyao City Hall (Poblacion)',
-        'destination': 'Pulo / Diezmo Road Junction',
-        'fare': 14.00,
-        'via': 'National Highway (AH-26)',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Cabuyao City Hall (Poblacion)',
-        'destination': 'Sala / Asia Brewery',
-        'fare': 14.00,
-        'via': 'National Highway (AH-26)',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Cabuyao City Hall (Poblacion)',
-        'destination': 'Calamba City Hall',
-        'fare': 18.00,
-        'via': 'National Highway (AH-26) southbound',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Cabuyao City Hall (Poblacion)',
-        'destination': 'SM City Calamba',
+        'origin': 'Cabuyao Terminal (Sala)',
+        'destination': 'Calamba City Terminal',
         'fare': 20.00,
-        'via': 'National Highway (AH-26) southbound',
+        'origin_lat': 14.2738,
+        'origin_lng': 121.1251,
+        'dest_lat': 14.2097,
+        'dest_lng': 121.1601,
+        'transport_type': 'JEEPNEY',
       },
       {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Cabuyao City Hall (Poblacion)',
-        'destination': 'Balibago Complex Terminal (Sta. Rosa)',
-        'fare': 18.00,
-        'via': 'National Highway (AH-26) northbound',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Cabuyao City Hall (Poblacion)',
-        'destination': 'SM City Sta. Rosa',
-        'fare': 20.00,
-        'via': 'National Highway (AH-26) northbound',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Balibago Complex Terminal (Sta. Rosa)',
-        'destination': 'Biñan City Hall',
-        'fare': 20.00,
-        'via': 'National Highway northbound',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Mamatid Terminal',
-        'destination': 'Cabuyao City Hall (Poblacion)',
-        'fare': 14.00,
-        'via': 'Mamatid Road',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Mamatid Terminal',
-        'destination': 'Balibago Complex Terminal (Sta. Rosa)',
-        'fare': 25.00,
-        'via': 'SLEX / Mamplasan Exit',
-      },
-      {
-        'transport_type': 'Jeepney (Traditional)',
-        'origin': 'Mamatid Terminal',
-        'destination': 'Alabang (Muntinlupa)',
-        'fare': 50.00,
-        'via': 'SLEX / Alabang Exit',
-      },
-    ]) {
-      await db.insert('routes', r);
-    }
-
-    // --- Modern / E-Jeepney Routes ---
-    for (final r in [
-      {
-        'transport_type': 'Jeepney (Modern/E-Jeep)',
-        'origin': 'Cabuyao Terminal (Poblacion)',
-        'destination': 'SM City Calamba',
+        'origin': 'Cabuyao Terminal (Sala)',
+        'destination': 'Sta. Rosa City Hall',
         'fare': 17.00,
-        'via': 'National Highway (AH-26)',
+        'origin_lat': 14.2738,
+        'origin_lng': 121.1251,
+        'dest_lat': 14.3122,
+        'dest_lng': 121.1122,
+        'transport_type': 'JEEPNEY',
       },
       {
-        'transport_type': 'Jeepney (Modern/E-Jeep)',
-        'origin': 'Cabuyao Terminal (Poblacion)',
-        'destination': 'Balibago Complex (Sta. Rosa)',
-        'fare': 17.00,
-        'via': 'National Highway (AH-26)',
+        'origin': 'Cabuyao Terminal (Sala)',
+        'destination': 'Biñan City Terminal',
+        'fare': 24.00,
+        'origin_lat': 14.2738,
+        'origin_lng': 121.1251,
+        'dest_lat': 14.3392,
+        'dest_lng': 121.0789,
+        'transport_type': 'JEEPNEY',
       },
       {
-        'transport_type': 'Jeepney (Modern/E-Jeep)',
-        'origin': 'Pacita Terminal (San Pedro)',
+        'origin': 'Cabuyao Terminal (Sala)',
+        'destination': 'Los Baños Public Market',
+        'fare': 51.00,
+        'origin_lat': 14.2738,
+        'origin_lng': 121.1251,
+        'dest_lat': 14.1663,
+        'dest_lng': 121.2397,
+        'transport_type': 'JEEPNEY',
+      },
+      {
+        'origin': 'Cabuyao Terminal (Sala)',
         'destination': 'SM City Calamba',
         'fare': 35.00,
-        'via': 'National Highway via Cabuyao',
+        'origin_lat': 14.2738,
+        'origin_lng': 121.1251,
+        'dest_lat': 14.2134,
+        'dest_lng': 121.1568,
+        'transport_type': 'UV_EXPRESS',
       },
-    ]) {
-      await db.insert('routes', r);
-    }
-
-    // --- Tricycle: Pulo-Diezmo Road Terminal ---
-    for (final r in [
       {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Anywhere on AH-26 (drop-off)',
+        'origin': 'Cabuyao Terminal (Sala)',
+        'destination': 'Pasay Bus Terminal (Manila)',
+        'fare': 110.00,
+        'origin_lat': 14.2738,
+        'origin_lng': 121.1251,
+        'dest_lat': 14.5378,
+        'dest_lng': 120.9980,
+        'transport_type': 'BUS',
+      },
+      {
+        'origin': 'Cabuyao Public Market',
+        'destination': 'Calamba City Terminal',
+        'fare': 18.00,
+        'origin_lat': 14.2756,
+        'origin_lng': 121.1234,
+        'dest_lat': 14.2097,
+        'dest_lng': 121.1601,
+        'transport_type': 'JEEPNEY',
+      },
+      {
+        'origin': 'Bigaa Terminal',
+        'destination': 'Cabuyao Terminal (Sala)',
         'fare': 13.00,
-        'via': 'Pulo Diezmo Road',
+        'origin_lat': 14.2894,
+        'origin_lng': 121.1219,
+        'dest_lat': 14.2738,
+        'dest_lng': 121.1251,
+        'transport_type': 'JEEPNEY',
       },
       {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Cabuyao Coliseum',
-        'fare': 15.00,
-        'via': 'Pulo Diezmo Road',
+        'origin': 'Pulo Terminal',
+        'destination': 'Cabuyao Terminal (Sala)',
+        'fare': 13.00,
+        'origin_lat': 14.2627,
+        'origin_lng': 121.1179,
+        'dest_lat': 14.2738,
+        'dest_lng': 121.1251,
+        'transport_type': 'JEEPNEY',
       },
       {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'San Carlos Village',
-        'fare': 15.00,
-        'via': 'Pulo Diezmo Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Villa Adelina Subdivision',
-        'fare': 15.00,
-        'via': 'Pulo Diezmo Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Unilever / JJ',
-        'fare': 17.00,
-        'via': 'Pulo Diezmo Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Lazada Warehouse',
-        'fare': 17.00,
-        'via': 'Pulo Diezmo Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Mapúa Malayan Colleges Laguna',
-        'fare': 17.00,
-        'via': 'Pulo Diezmo Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Ninja Van Sta. Elena',
-        'fare': 17.00,
-        'via': 'Pulo Diezmo Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Gate 1 (LISP / Industrial)',
-        'fare': 19.00,
-        'via': 'Pulo Diezmo Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Gate 2 (LISP / Industrial)',
-        'fare': 17.00,
-        'via': 'Pulo Diezmo Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Gate 3 (LISP / Industrial)',
-        'fare': 19.00,
-        'via': 'Pulo Diezmo Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Ilaya (Diezmo Interior)',
+        'origin': 'Butong Barangay',
+        'destination': 'Calamba City Terminal',
         'fare': 22.00,
-        'via': 'Pulo Diezmo Road → Ilaya',
+        'origin_lat': 14.2651,
+        'origin_lng': 121.1098,
+        'dest_lat': 14.2097,
+        'dest_lng': 121.1601,
+        'transport_type': 'JEEPNEY',
       },
       {
-        'transport_type': 'Tricycle',
-        'origin': 'Pulo Diezmo Road Tricycle Terminal',
-        'destination': 'Diezmo Proper',
-        'fare': 25.00,
-        'via': 'Pulo Diezmo Road',
-      },
-    ]) {
-      await db.insert('routes', r);
-    }
-
-    // --- Tricycle: Poblacion / City Hall ---
-    for (final r in [
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Poblacion Tricycle Terminal (City Hall)',
-        'destination': 'Barangay Uno (Pob.)',
-        'fare': 15.00,
-        'via': 'Poblacion streets',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Poblacion Tricycle Terminal (City Hall)',
-        'destination': 'Barangay Dos (Pob.)',
-        'fare': 15.00,
-        'via': 'Poblacion streets',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Poblacion Tricycle Terminal (City Hall)',
-        'destination': 'Barangay Tres (Pob.)',
-        'fare': 15.00,
-        'via': 'Poblacion streets',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Poblacion Tricycle Terminal (City Hall)',
-        'destination': 'Banaybanay',
-        'fare': 17.00,
-        'via': 'Poblacion → Banaybanay Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Poblacion Tricycle Terminal (City Hall)',
-        'destination': 'Banlic',
-        'fare': 17.00,
-        'via': 'Poblacion → Banlic Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Poblacion Tricycle Terminal (City Hall)',
-        'destination': 'Gulod',
-        'fare': 20.00,
-        'via': 'Poblacion → Gulod Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Poblacion Tricycle Terminal (City Hall)',
-        'destination': 'Casile',
-        'fare': 20.00,
-        'via': 'Poblacion → Casile Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Poblacion Tricycle Terminal (City Hall)',
-        'destination': 'San Isidro',
-        'fare': 17.00,
-        'via': 'Poblacion → San Isidro Road',
-      },
-    ]) {
-      await db.insert('routes', r);
-    }
-
-    // --- Tricycle: Bigaa Terminal ---
-    for (final r in [
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Bigaa Tricycle Terminal',
-        'destination': 'Bigaa Lakeshore (Laguna de Bay)',
-        'fare': 15.00,
-        'via': 'Bigaa Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Bigaa Tricycle Terminal',
-        'destination': 'Bigaa Elementary School',
-        'fare': 15.00,
-        'via': 'Bigaa Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Bigaa Tricycle Terminal',
-        'destination': 'Butong',
-        'fare': 17.00,
-        'via': 'Bigaa → Butong Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Bigaa Tricycle Terminal',
-        'destination': 'Marinig',
-        'fare': 17.00,
-        'via': 'Bigaa → Marinig Road',
-      },
-    ]) {
-      await db.insert('routes', r);
-    }
-
-    // --- Tricycle: Sala Terminal ---
-    for (final r in [
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Sala Tricycle Terminal',
-        'destination': 'Asia Brewery / Tanduay',
-        'fare': 15.00,
-        'via': 'Sala Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Sala Tricycle Terminal',
-        'destination': 'Sala Lakeshore (Laguna de Bay)',
-        'fare': 17.00,
-        'via': 'Sala Road → Lakeshore',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Sala Tricycle Terminal',
-        'destination': 'Niugan (Nestlé Philippines)',
-        'fare': 17.00,
-        'via': 'Sala → Niugan Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Sala Tricycle Terminal',
-        'destination': 'Mamatid',
-        'fare': 20.00,
-        'via': 'Sala → Mamatid Road',
-      },
-    ]) {
-      await db.insert('routes', r);
-    }
-
-    // --- Tricycle: Mamatid Terminal ---
-    for (final r in [
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Mamatid Tricycle Terminal',
-        'destination': 'Mamatid PNR Station',
-        'fare': 15.00,
-        'via': 'Mamatid Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Mamatid Tricycle Terminal',
-        'destination': 'San Vicente Ferrer Shrine',
-        'fare': 15.00,
-        'via': 'Mamatid Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Mamatid Tricycle Terminal',
-        'destination': 'Goldilocks Plant (Mamatid)',
-        'fare': 15.00,
-        'via': 'Mamatid Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Mamatid Tricycle Terminal',
-        'destination': 'Pittland / LISP I Gate',
-        'fare': 17.00,
-        'via': 'Mamatid → Pittland Road',
-      },
-      {
-        'transport_type': 'Tricycle',
-        'origin': 'Mamatid Tricycle Terminal',
-        'destination': 'National Highway (AH-26) Drop-off',
-        'fare': 20.00,
-        'via': 'Mamatid Road → National Highway',
-      },
-    ]) {
-      await db.insert('routes', r);
-    }
-
-    // --- UV Express / Van Routes ---
-    for (final r in [
-      {
-        'transport_type': 'UV Express / Van',
-        'origin': 'Balibago Complex Terminal (Sta. Rosa)',
-        'destination': 'Alabang (Muntinlupa)',
-        'fare': 50.00,
-        'via': 'SLEX / Expressway',
-      },
-      {
-        'transport_type': 'UV Express / Van',
-        'origin': 'Balibago Complex Terminal (Sta. Rosa)',
-        'destination': 'Nuvali (Sta. Rosa)',
-        'fare': 20.00,
-        'via': 'Sta. Rosa – Tagaytay Road',
-      },
-      {
-        'transport_type': 'UV Express / Van',
-        'origin': 'Balibago Complex Terminal (Sta. Rosa)',
-        'destination': 'Tagaytay City',
-        'fare': 45.00,
-        'via': 'Sta. Rosa – Tagaytay Road',
-      },
-      {
-        'transport_type': 'UV Express / Van',
-        'origin': 'Balibago Complex Terminal (Sta. Rosa)',
-        'destination': 'Pacita Complex (San Pedro)',
-        'fare': 25.00,
-        'via': 'National Highway northbound',
-      },
-      {
-        'transport_type': 'UV Express / Van',
-        'origin': 'Balibago Complex Terminal (Sta. Rosa)',
+        'origin': 'Mamatid Terminal',
         'destination': 'SM City Calamba',
-        'fare': 35.00,
-        'via': 'National Highway southbound',
-      },
-    ]) {
-      await db.insert('routes', r);
-    }
-
-    // --- Bus Routes ---
-    for (final r in [
-      {
-        'transport_type': 'Bus (Ordinary)',
-        'origin': 'Cabuyao (National Highway)',
-        'destination': 'Alabang / Starmall (Muntinlupa)',
-        'fare': 50.00,
-        'via': 'SLEX northbound',
+        'fare': 20.00,
+        'origin_lat': 14.2435,
+        'origin_lng': 121.1356,
+        'dest_lat': 14.2134,
+        'dest_lng': 121.1568,
+        'transport_type': 'JEEPNEY',
       },
       {
-        'transport_type': 'Bus (Aircon)',
-        'origin': 'Cabuyao (National Highway)',
-        'destination': 'Alabang / Starmall (Muntinlupa)',
-        'fare': 80.00,
-        'via': 'SLEX northbound',
+        'origin': 'Cabuyao Terminal (Sala)',
+        'destination': 'Sta. Cruz, Laguna',
+        'fare': 70.00,
+        'origin_lat': 14.2738,
+        'origin_lng': 121.1251,
+        'dest_lat': 14.2768,
+        'dest_lng': 121.4137,
+        'transport_type': 'BUS',
       },
       {
-        'transport_type': 'Bus (Ordinary)',
-        'origin': 'Cabuyao (National Highway)',
-        'destination': 'Cubao / Buendia (Manila)',
-        'fare': 120.00,
-        'via': 'SLEX → EDSA northbound',
-      },
-      {
-        'transport_type': 'Bus (Aircon)',
-        'origin': 'Cabuyao (National Highway)',
-        'destination': 'Cubao / Buendia (Manila)',
-        'fare': 160.00,
-        'via': 'SLEX → EDSA northbound',
-      },
-      {
-        'transport_type': 'Bus (Ordinary)',
-        'origin': 'Cabuyao (National Highway)',
-        'destination': 'Calamba (Grand Terminal)',
-        'fare': 35.00,
-        'via': 'National Highway / SLEX southbound',
-      },
-      {
-        'transport_type': 'Bus (Aircon)',
-        'origin': 'Cabuyao (National Highway)',
-        'destination': 'Calamba (Grand Terminal)',
-        'fare': 55.00,
-        'via': 'National Highway / SLEX southbound',
-      },
-      {
-        'transport_type': 'Bus (Ordinary)',
-        'origin': 'Cabuyao (National Highway)',
-        'destination': 'Los Baños',
-        'fare': 60.00,
-        'via': 'National Highway southbound',
-      },
-      {
-        'transport_type': 'Bus (Ordinary)',
-        'origin': 'Cabuyao (National Highway)',
+        'origin': 'Cabuyao Terminal (Sala)',
         'destination': 'San Pablo City',
-        'fare': 120.00,
-        'via': 'National Highway southbound',
+        'fare': 65.00,
+        'origin_lat': 14.2738,
+        'origin_lng': 121.1251,
+        'dest_lat': 14.0688,
+        'dest_lng': 121.3224,
+        'transport_type': 'BUS',
       },
       {
-        'transport_type': 'Bus (Aircon)',
-        'origin': 'Cabuyao (National Highway)',
-        'destination': 'Batangas City / Grand Terminal',
-        'fare': 200.00,
-        'via': 'SLEX → STAR Tollway southbound',
+        'origin': 'Sala (City Center)',
+        'destination': 'Pulo Barangay',
+        'fare': 15.00,
+        'origin_lat': 14.2738,
+        'origin_lng': 121.1251,
+        'dest_lat': 14.2627,
+        'dest_lng': 121.1179,
+        'transport_type': 'TRICYCLE',
+      },
+      {
+        'origin': 'Sala (City Center)',
+        'destination': 'Mamatid',
+        'fare': 25.00,
+        'origin_lat': 14.2738,
+        'origin_lng': 121.1251,
+        'dest_lat': 14.2435,
+        'dest_lng': 121.1356,
+        'transport_type': 'TRICYCLE',
       },
     ]) {
       await db.insert('routes', r);
     }
 
-    // ── TERMINALS ─────────────────────────────────────────────────────────────
+    // ── Terminals ──────────────────────────────────────────────────────────
     for (final t in [
       {
-        'category': 'JEEPNEY TERMINAL',
-        'name': 'Cabuyao City Hall Terminal (Poblacion)',
+        'category': 'PUBLIC TERMINAL',
+        'name': 'Cabuyao City Public Terminal',
         'description':
-            'Main jeepney terminal along the National Highway near Cabuyao City Hall. Hub for northbound (Sta. Rosa) and southbound (Calamba) jeepneys.',
-        'emoji': '🚙',
+            'Main transportation hub in Barangay Sala. Jeepney, UV Express, and bus routes depart from here.',
+        'emoji': '🚉',
+        'lat': 14.2738,
+        'lng': 121.1251
+      },
+      {
+        'category': 'MARKET TERMINAL',
+        'name': 'Cabuyao Public Market Terminal',
+        'description':
+            'Terminal adjacent to Cabuyao Public Market. Serves local routes and inter-city jeepneys.',
+        'emoji': '🏪',
+        'lat': 14.2756,
+        'lng': 121.1234
+      },
+      {
+        'category': 'JEEPNEY TERMINAL',
+        'name': 'Bigaa Terminal',
+        'description':
+            'Serves Barangay Bigaa and connecting routes to Cabuyao City Center and Biñan.',
+        'emoji': '🚌',
+        'lat': 14.2894,
+        'lng': 121.1219
+      },
+      {
+        'category': 'JEEPNEY TERMINAL',
+        'name': 'Butong Terminal',
+        'description':
+            'Terminal in Barangay Butong. Routes to Calamba and Cabuyao City Center.',
+        'emoji': '🚌',
+        'lat': 14.2651,
+        'lng': 121.1098
       },
       {
         'category': 'JEEPNEY TERMINAL',
         'name': 'Mamatid Terminal',
         'description':
-            'Jeepney terminal in Barangay Mamatid. Serves routes to Poblacion, Alabang via SLEX, and Balibago. Near the PNR Mamatid Station.',
-        'emoji': '🚙',
-      },
-      {
-        'category': 'JEEPNEY TERMINAL',
-        'name': 'Bigaa Junction Terminal',
-        'description':
-            'Terminal at Bigaa junction along AH-26. Jeepneys pass here going to Calamba or Sta. Rosa.',
-        'emoji': '🚙',
+            'Serves Barangay Mamatid. Connects to SM Calamba and Cabuyao routes.',
+        'emoji': '🚌',
+        'lat': 14.2435,
+        'lng': 121.1356
       },
       {
         'category': 'TRICYCLE TERMINAL',
-        'name': 'Pulo Diezmo Road Tricycle Terminal',
+        'name': 'Pulo Tricycle Terminal',
         'description':
-            'Located at the junction of AH-26 and Pulo-Diezmo Road. Serves Diezmo, Ilaya, LISP industrial gates, Mapúa MCL, and nearby subdivisions.',
+            'Tricycle terminal in Barangay Pulo. Serves local commuters within the barangay.',
         'emoji': '🛺',
+        'lat': 14.2627,
+        'lng': 121.1179
       },
       {
-        'category': 'TRICYCLE TERMINAL',
-        'name': 'Poblacion Tricycle Terminal (City Hall)',
+        'category': 'BUS STOP',
+        'name': 'Cabuyao National Highway Bus Stop (DLTB)',
         'description':
-            'Near Cabuyao City Hall. Serves the three Poblacion barangays and inner barangays like Banlic, Banaybanay, Gulod, and Casile.',
-        'emoji': '🛺',
-      },
-      {
-        'category': 'TRICYCLE TERMINAL',
-        'name': 'Bigaa Tricycle Terminal',
-        'description':
-            'At the entrance of Brgy. Bigaa off AH-26. Serves the Bigaa lakeshore area, Butong, and Marinig.',
-        'emoji': '🛺',
-      },
-      {
-        'category': 'TRICYCLE TERMINAL',
-        'name': 'Sala Tricycle Terminal',
-        'description':
-            'Along AH-26 near Brgy. Sala. Serves Sala interior, Asia Brewery/Tanduay area, Niugan, and the Laguna de Bay lakeshore.',
-        'emoji': '🛺',
-      },
-      {
-        'category': 'TRICYCLE TERMINAL',
-        'name': 'Mamatid Tricycle Terminal',
-        'description':
-            'In Brgy. Mamatid near San Vicente Ferrer Shrine. Serves Mamatid interior, Pittland/LISP I gates, and the PNR station.',
-        'emoji': '🛺',
-      },
-      {
-        'category': 'BUS TERMINAL',
-        'name': 'Balibago Complex Terminal (Sta. Rosa)',
-        'description':
-            'Major inter-city transport hub in neighboring Sta. Rosa. Accessible from Cabuyao via jeepney along AH-26. Hub for buses to Manila, UV Express to Tagaytay/Nuvali, and jeeps to Biñan/Pacita/Calamba.',
+            'Bus stop along the National Highway. Serves DLTB bus lines going to Manila and Sta. Cruz.',
         'emoji': '🚍',
+        'lat': 14.2720,
+        'lng': 121.1280
       },
       {
-        'category': 'BUS TERMINAL',
-        'name': 'Calamba Grand Terminal',
+        'category': 'UV EXPRESS HUB',
+        'name': 'Cabuyao UV Express Hub',
         'description':
-            'Main bus terminal for Calamba City, south of Cabuyao along AH-26. Serves long-distance buses to Batangas, Quezon, Bicol, and local jeepneys.',
-        'emoji': '🚍',
+            'Boarding point for UV Express vans going to SM Calamba and Pasay Terminal.',
+        'emoji': '🚐',
+        'lat': 14.2745,
+        'lng': 121.1260
       },
       {
-        'category': 'TRAIN STATION',
-        'name': 'Cabuyao PNR Station',
+        'category': 'TERMINAL',
+        'name': 'Pittland Terminal',
         'description':
-            'Philippine National Railways station in Cabuyao along the Calamba–Manila south line. Currently suspended pending rehabilitation.',
-        'emoji': '🚆',
+            'Subdivision terminal near Pittland, Cabuyao. Tricycles and local jeepneys.',
+        'emoji': '🏘️',
+        'lat': 14.2561,
+        'lng': 121.1418
       },
       {
-        'category': 'TRAIN STATION',
-        'name': 'Mamatid PNR Station',
+        'category': 'TERMINAL',
+        'name': 'Baclaran Junction Terminal',
         'description':
-            'Philippine National Railways station in Barangay Mamatid. On the south line toward Manila. Currently suspended pending rehabilitation.',
-        'emoji': '🚆',
-      },
-      {
-        'category': 'LANDMARK',
-        'name': 'Mapúa Malayan Colleges Laguna (MCL)',
-        'description':
-            'University campus in Cabuyao. Reachable via tricycle from Pulo Diezmo Road Terminal (₱17) or jeepney along AH-26.',
-        'emoji': '🏫',
-      },
-      {
-        'category': 'LANDMARK',
-        'name': 'LISP I (Light Industry and Science Park)',
-        'description':
-            'Major industrial park in Cabuyao hosting Nestlé, P&G, URC, Samsung, and others. Multiple gates accessible by tricycle from Pulo Diezmo and Mamatid terminals.',
-        'emoji': '🏭',
-      },
-      {
-        'category': 'LANDMARK',
-        'name': 'Cabuyao Coliseum',
-        'description':
-            'Sports and events venue in Cabuyao. Reachable via tricycle from Pulo Diezmo Road Terminal (₱15).',
-        'emoji': '🏟️',
-      },
-      {
-        'category': 'LANDMARK',
-        'name': 'Nestlé Philippines Plant (Niugan)',
-        'description':
-            'Nestlé manufacturing facility along AH-26 in Brgy. Niugan. Accessible by jeepney (drop-off) or tricycle from Sala terminal.',
-        'emoji': '🏭',
-      },
-      {
-        'category': 'LANDMARK',
-        'name': 'San Vicente Ferrer Diocesan Shrine (Mamatid)',
-        'description':
-            'Popular Catholic shrine in Brgy. Mamatid. Reachable via tricycle from Mamatid Terminal (₱15).',
-        'emoji': '⛪',
+            'Junction terminal at Baclaran. Connects to Manila-bound routes.',
+        'emoji': '🔀',
+        'lat': 14.2480,
+        'lng': 121.1390
       },
     ]) {
       await db.insert('terminals', t);
     }
 
-    // ── ZONES ─────────────────────────────────────────────────────────────────
+    // ── Zones ──────────────────────────────────────────────────────────────
     for (final z in [
       {
-        'name': 'Zone 1 – National Highway Corridor (AH-26)',
+        'name': 'Zone 1 – City Center',
         'color_hex': 'FF3B6FE0',
-        'stop_count': 14,
+        'stop_count': 15,
+        'barangays': 'Sala, Banay-Banay, Pulo'
       },
       {
-        'name': 'Zone 2 – Poblacion / City Center',
+        'name': 'Zone 2 – Northern District',
         'color_hex': 'FF43A047',
-        'stop_count': 8,
+        'stop_count': 12,
+        'barangays': 'Bigaa, Butong, Talavera, Gulod'
       },
       {
-        'name': 'Zone 3 – Lakeshore Barangays (Laguna de Bay)',
-        'color_hex': 'FF00ACC1',
-        'stop_count': 6,
-      },
-      {
-        'name': 'Zone 4 – Industrial / LISP Area',
-        'color_hex': 'FFFFC200',
-        'stop_count': 10,
-      },
-      {
-        'name': 'Zone 5 – Upland / Interior Barangays',
-        'color_hex': 'FF8E24AA',
-        'stop_count': 7,
-      },
-      {
-        'name': 'Zone 6 – Mamatid / Pittland Corridor',
+        'name': 'Zone 3 – Southern District',
         'color_hex': 'FFE53935',
-        'stop_count': 9,
+        'stop_count': 10,
+        'barangays': 'Mamatid, Pittland, Baclaran, Niugan'
+      },
+      {
+        'name': 'Zone 4 – Industrial Zone',
+        'color_hex': 'FFEF6C00',
+        'stop_count': 8,
+        'barangays': 'LIIP Area (Light Industry & Science Park)'
+      },
+      {
+        'name': 'Zone 5 – Highway Corridor',
+        'color_hex': 'FF8E24AA',
+        'stop_count': 18,
+        'barangays':
+            'National Highway corridor from Biñan boundary to Calamba boundary'
       },
     ]) {
       await db.insert('zones', z);
     }
   }
 
+  // ── Generic helpers ────────────────────────────────────────────────────────
   Future<List<Map<String, dynamic>>> queryAll(String table) async {
     final db = await database;
     return db.query(table, orderBy: 'id ASC');
@@ -804,11 +429,25 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> search(
       String table, String column, String query) async {
     final db = await database;
-    return db.query(
-      table,
-      where: '$column LIKE ?',
-      whereArgs: ['%$query%'],
-      orderBy: 'id ASC',
-    );
+    return db.query(table,
+        where: '$column LIKE ?', whereArgs: ['%$query%'], orderBy: 'id ASC');
+  }
+
+  Future<int> count(String table) async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as c FROM $table');
+    return (result.first['c'] as int? ?? 0);
+  }
+
+  Future<String?> getSetting(String key) async {
+    final db = await database;
+    final rows = await db.query('settings', where: 'key = ?', whereArgs: [key]);
+    return rows.isNotEmpty ? rows.first['value'] as String : null;
+  }
+
+  Future<void> setSetting(String key, String value) async {
+    final db = await database;
+    await db.insert('settings', {'key': key, 'value': value},
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 }
