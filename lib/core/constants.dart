@@ -4,7 +4,7 @@
 /// Enable: Maps SDK for Android, Maps SDK for iOS, Directions API
 /// ─────────────────────────────────────────────────────────────────────────────
 class AppConstants {
-  static const googleMapsApiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
+  static const googleMapsApiKey = 'AIzaSyAAgbRaqy3p9bCa87GA00Dj3tcLrZnwB0g';
 
   // Admin PIN — change this after first login via Admin page
   static const defaultAdminPin = '1234';

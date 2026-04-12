@@ -57,6 +57,7 @@ class PageHeader extends StatelessWidget {
   }
 }
 
+// ── Compact inline fare toggle (used in page headers and map bar) ─────────────
 class FareToggle extends StatelessWidget {
   const FareToggle({super.key});
   @override
@@ -73,18 +74,159 @@ class FareToggle extends StatelessWidget {
             decoration: BoxDecoration(
               color: disc ? AppColors.yellow : Colors.white.withValues(alpha: 0.22),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: disc ? AppColors.yellowDark : Colors.white.withValues(alpha: 0.4)),
+              border: Border.all(
+                  color: disc
+                      ? AppColors.yellowDark
+                      : Colors.white.withValues(alpha: 0.4)),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(disc ? Icons.percent : Icons.attach_money,
                   color: disc ? AppColors.textDark : Colors.white, size: 14),
               const SizedBox(width: 4),
               Text(disc ? 'Discounted' : 'Regular',
-                  style: TextStyle(color: disc ? AppColors.textDark : Colors.white,
+                  style: TextStyle(
+                      color: disc ? AppColors.textDark : Colors.white,
                       fontSize: 11, fontWeight: FontWeight.w700)),
             ]),
           ),
         );
+      },
+    );
+  }
+}
+
+// ── Card-style passenger type selector (used inside route/transport list pages) ─
+/// Displays two side-by-side cards: Regular | Discounted.
+/// Matches the UI in the Routes & Fares screen mockup.
+class PassengerTypeSelector extends StatelessWidget {
+  const PassengerTypeSelector({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: AppState.instance,
+      builder: (_, __) {
+        final disc = AppState.instance.isDiscounted;
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Label row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(children: [
+              const Icon(Icons.people_outline,
+                  color: AppColors.textMid, size: 16),
+              const SizedBox(width: 6),
+              const Text('Passenger type', style: TextStyle(
+                  color: AppColors.textMid, fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+            ]),
+          ),
+          // Card row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(children: [
+              // Regular card
+              Expanded(child: GestureDetector(
+                onTap: disc ? AppState.instance.toggleDiscount : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: !disc ? AppColors.blue : AppColors.offWhite,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: !disc ? AppColors.blue : AppColors.lightGrey,
+                        width: 1.5),
+                    boxShadow: !disc
+                        ? [BoxShadow(
+                            color: AppColors.blue.withValues(alpha: 0.18),
+                            blurRadius: 8, offset: const Offset(0, 3))]
+                        : null,
+                  ),
+                  child: Row(children: [
+                    Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text('Regular', style: TextStyle(
+                          color: !disc ? Colors.white : AppColors.textMid,
+                          fontSize: 14, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text('Standard fare', style: TextStyle(
+                          color: !disc
+                              ? Colors.white.withValues(alpha: 0.8)
+                              : AppColors.textLight,
+                          fontSize: 11)),
+                    ])),
+                    if (!disc)
+                      Container(
+                        width: 22, height: 22,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.check,
+                            color: Colors.white, size: 14)),
+                  ]),
+                ),
+              )),
+              const SizedBox(width: 10),
+              // Discounted card
+              Expanded(child: GestureDetector(
+                onTap: !disc ? AppState.instance.toggleDiscount : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: disc ? AppColors.yellow : AppColors.offWhite,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: disc
+                            ? AppColors.yellowDark
+                            : AppColors.lightGrey,
+                        width: 1.5),
+                    boxShadow: disc
+                        ? [BoxShadow(
+                            color: AppColors.yellow.withValues(alpha: 0.3),
+                            blurRadius: 8, offset: const Offset(0, 3))]
+                        : null,
+                  ),
+                  child: Row(children: [
+                    Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text('Discounted', style: TextStyle(
+                          color: disc
+                              ? AppColors.textDark
+                              : AppColors.textMid,
+                          fontSize: 14, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text('20% off (Student /\nSenior / PWD)',
+                          style: TextStyle(
+                              color: disc
+                                  ? AppColors.textDark.withValues(alpha: 0.65)
+                                  : AppColors.textLight,
+                              fontSize: 11)),
+                    ])),
+                    if (disc)
+                      Container(
+                        width: 22, height: 22,
+                        decoration: BoxDecoration(
+                          color: AppColors.textDark.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.local_offer,
+                            color: AppColors.textDark, size: 13)),
+                    if (!disc)
+                      Icon(Icons.local_offer,
+                          color: AppColors.textLight, size: 16),
+                  ]),
+                ),
+              )),
+            ]),
+          ),
+          const Divider(color: AppColors.divider, height: 1),
+        ]);
       },
     );
   }
@@ -103,7 +245,7 @@ class FareDisplay extends StatelessWidget {
         final display = disc ? fare * 0.80 : fare;
         if (compact) {
           return Row(mainAxisSize: MainAxisSize.min, children: [
-            Text('Ph${display.toStringAsFixed(2)}',
+            Text('₱${display.toStringAsFixed(2)}',
                 style: const TextStyle(color: AppColors.blue, fontSize: 11, fontWeight: FontWeight.w800)),
             if (disc) ...[
               const SizedBox(width: 4),
@@ -114,11 +256,11 @@ class FareDisplay extends StatelessWidget {
           ]);
         }
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Ph${display.toStringAsFixed(2)}',
+          Text('₱${display.toStringAsFixed(2)}',
               style: TextStyle(color: disc ? const Color(0xFF2E7D32) : AppColors.textMid,
                   fontSize: 13, fontWeight: FontWeight.w700)),
           if (disc)
-            Text('Regular: Ph${fare.toStringAsFixed(2)}',
+            Text('Regular: ₱${fare.toStringAsFixed(2)}',
                 style: const TextStyle(color: AppColors.textLight, fontSize: 11,
                     decoration: TextDecoration.lineThrough)),
         ]);

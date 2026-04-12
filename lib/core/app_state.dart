@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:para_po/core/models/models.dart';
 
-/// Global app state — no external package needed.
-/// Use ListenableBuilder(listenable: AppState.instance, ...) to rebuild on change.
+/// Global app state shared across all pages.
+/// Widgets listen via: ListenableBuilder(listenable: AppState.instance, ...)
 class AppState extends ChangeNotifier {
   static final AppState instance = AppState._();
   AppState._();
@@ -16,27 +16,38 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Navigation tab ────────────────────────────────────────────────────────
+  // ── Active tab index ──────────────────────────────────────────────────────
   int _tabIndex = 0;
   int get tabIndex => _tabIndex;
 
-  // Optional route to open on the Map page (set from Routes page)
-  RouteModel? _pendingRoute;
-  RouteModel? get pendingRoute => _pendingRoute;
+  void setTab(int i) {
+    _tabIndex = i;
+    notifyListeners();
+  }
+
+  // ── Pending route (set from Routes page → opens Map page) ─────────────────
+  // Stores origin + destination text for the map input fields.
+  // Routes no longer carry lat/lng — OSRM geocodes from text or we search DB.
+  String? _pendingOrigin;
+  String? _pendingDestination;
+  String? get pendingOrigin      => _pendingOrigin;
+  String? get pendingDestination => _pendingDestination;
+
+  bool get hasPendingRoute =>
+      _pendingOrigin != null && _pendingDestination != null;
 
   void goToMap({RouteModel? route}) {
-    _pendingRoute = route;
+    if (route != null) {
+      _pendingOrigin      = route.origin;
+      _pendingDestination = route.destination;
+    }
     _tabIndex = 0;
     notifyListeners();
   }
 
   void clearPendingRoute() {
-    _pendingRoute = null;
-    // deliberately no notifyListeners – map page calls this internally
-  }
-
-  void setTab(int i) {
-    _tabIndex = i;
-    notifyListeners();
+    _pendingOrigin      = null;
+    _pendingDestination = null;
+    // No notifyListeners — called internally by the map page
   }
 }

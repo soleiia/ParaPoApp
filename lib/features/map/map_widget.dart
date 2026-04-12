@@ -1,5 +1,5 @@
-// Unified map widget using flutter_map + OpenStreetMap.
-// Works on Android, iOS, Windows, Linux, macOS — no API key needed.
+// Unified map widget — flutter_map + OpenStreetMap.
+// Works on Android, iOS, Windows, Linux, macOS. No API key needed for map tiles.
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
@@ -22,21 +22,18 @@ class MapWidget extends StatefulWidget {
     this.showRoute = false,
   });
 
-  // Static map controller — accessed by map_page for camera control
   static final _ctrl = MapController();
+  static _TileType _tileType = _TileType.street;
 
   static void goToMyLocation() {
-    _ctrl.move(_kCabuyao, 14);
+    try { _ctrl.move(_kCabuyao, 14); } catch (_) {}
   }
 
   static void toggleMapType() {
-    // flutter_map tile layer switching handled via MapTileType below
-    MapWidget._tileType = MapWidget._tileType == _TileType.street
+    _tileType = _tileType == _TileType.street
         ? _TileType.satellite
         : _TileType.street;
   }
-
-  static _TileType _tileType = _TileType.street;
 
   @override
   State<MapWidget> createState() => _MapWidgetState();
@@ -45,6 +42,8 @@ class MapWidget extends StatefulWidget {
 enum _TileType { street, satellite }
 
 class _MapWidgetState extends State<MapWidget> {
+  bool _mapError = false;
+
   List<ll.LatLng> _toLL(List<AppLatLng> pts) =>
       pts.map((p) => ll.LatLng(p.lat, p.lng)).toList();
 
@@ -58,24 +57,27 @@ class _MapWidgetState extends State<MapWidget> {
   }
 
   void _fitRoute(List<AppLatLng> pts) {
-    final lats = pts.map((p) => p.lat).toList();
-    final lngs = pts.map((p) => p.lng).toList();
-    final sw = ll.LatLng(
-      lats.reduce((a, b) => a < b ? a : b),
-      lngs.reduce((a, b) => a < b ? a : b),
-    );
-    final ne = ll.LatLng(
-      lats.reduce((a, b) => a > b ? a : b),
-      lngs.reduce((a, b) => a > b ? a : b),
-    );
-    MapWidget._ctrl.fitCamera(CameraFit.bounds(
-      bounds: LatLngBounds(sw, ne),
-      padding: const EdgeInsets.all(60),
-    ));
+    try {
+      final lats = pts.map((p) => p.lat).toList();
+      final lngs = pts.map((p) => p.lng).toList();
+      final sw = ll.LatLng(
+        lats.reduce((a, b) => a < b ? a : b),
+        lngs.reduce((a, b) => a < b ? a : b),
+      );
+      final ne = ll.LatLng(
+        lats.reduce((a, b) => a > b ? a : b),
+        lngs.reduce((a, b) => a > b ? a : b),
+      );
+      MapWidget._ctrl.fitCamera(CameraFit.bounds(
+        bounds: LatLngBounds(sw, ne),
+        padding: const EdgeInsets.all(60),
+      ));
+    } catch (_) {}
   }
 
   String get _tileUrl => MapWidget._tileType == _TileType.satellite
-      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/'
+        'World_Imagery/MapServer/tile/{z}/{y}/{x}'
       : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
   @override
@@ -84,73 +86,143 @@ class _MapWidgetState extends State<MapWidget> {
     final orig = widget.originPin;
     final dest = widget.destPin;
 
+    if (_mapError) {
+      return _MapErrorPlaceholder(onRetry: () => setState(() => _mapError = false));
+    }
+
     return FlutterMap(
       mapController: MapWidget._ctrl,
       options: const MapOptions(
         initialCenter: _kCabuyao,
         initialZoom: 13,
+        minZoom: 5,
+        maxZoom: 19,
         interactionOptions: InteractionOptions(flags: InteractiveFlag.all),
       ),
       children: [
-        // Map tile layer (street or satellite)
+        // ── Tile layer ──────────────────────────────────────────────────────
         TileLayer(
           urlTemplate: _tileUrl,
           userAgentPackageName: 'com.example.para_po',
+          // Fallback tiles if primary fails
+          fallbackUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          errorTileCallback: (tile, err, stack) {
+            // Don't setState here — just silently fail per tile
+          },
+          tileBuilder: (context, child, tile) => child,
         ),
 
-        // Route polyline
+        // ── Route polyline ───────────────────────────────────────────────────
         if (poly != null && poly.length > 1)
           PolylineLayer(polylines: [
             Polyline(
               points:      _toLL(poly),
               color:       AppColors.blue,
               strokeWidth: 5,
+              borderColor: Colors.white.withValues(alpha: 0.5),
+              borderStrokeWidth: 2,
             ),
           ]),
 
-        // Markers
+        // ── Markers ─────────────────────────────────────────────────────────
         MarkerLayer(markers: [
           if (orig != null)
             Marker(
               point:  ll.LatLng(orig.lat, orig.lng),
-              width:  40,
-              height: 50,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Container(
-                  width: 34, height: 34,
-                  decoration: const BoxDecoration(
-                      color: AppColors.blue, shape: BoxShape.circle),
-                  child: const Icon(Icons.trip_origin,
-                      color: Colors.white, size: 20)),
-                Container(width: 2, height: 8, color: AppColors.blue),
-              ]),
+              width:  44,
+              height: 52,
+              child:  _Pin(color: AppColors.blue, icon: Icons.trip_origin),
             ),
           if (dest != null)
             Marker(
               point:  ll.LatLng(dest.lat, dest.lng),
-              width:  40,
-              height: 50,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Container(
-                  width: 34, height: 34,
-                  decoration: const BoxDecoration(
-                      color: AppColors.yellow, shape: BoxShape.circle),
-                  child: const Icon(Icons.flag,
-                      color: AppColors.textDark, size: 20)),
-                Container(width: 2, height: 8, color: AppColors.yellow),
-              ]),
+              width:  44,
+              height: 52,
+              child:  _Pin(color: AppColors.yellow, icon: Icons.flag,
+                  iconColor: AppColors.textDark),
             ),
         ]),
 
-        // Attribution (required by OSM/ArcGIS terms)
-        RichAttributionWidget(attributions: [
-          TextSourceAttribution(
-            MapWidget._tileType == _TileType.satellite
-                ? 'Esri World Imagery'
-                : 'OpenStreetMap contributors',
-          ),
-        ]),
+        // ── Attribution ─────────────────────────────────────────────────────
+        RichAttributionWidget(
+          popupInitialDisplayDuration: Duration.zero,
+          attributions: [
+            TextSourceAttribution(
+              MapWidget._tileType == _TileType.satellite
+                  ? 'Esri World Imagery'
+                  : 'OpenStreetMap contributors',
+            ),
+          ],
+        ),
       ],
     );
   }
+}
+
+// ── Pin marker ────────────────────────────────────────────────────────────────
+class _Pin extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final Color iconColor;
+  const _Pin({required this.color, required this.icon,
+      this.iconColor = Colors.white});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle,
+          boxShadow: [BoxShadow(color: color.withValues(alpha: 0.4),
+              blurRadius: 8, offset: const Offset(0, 3))]),
+        child: Icon(icon, color: iconColor, size: 20)),
+      Container(width: 2.5, height: 10,
+          decoration: BoxDecoration(color: color,
+              borderRadius: BorderRadius.circular(2))),
+      Container(width: 6, height: 3,
+        decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(3))),
+    ],
+  );
+}
+
+// ── Error placeholder ─────────────────────────────────────────────────────────
+class _MapErrorPlaceholder extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _MapErrorPlaceholder({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    color: const Color(0xFFE8F0FE),
+    child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 16)]),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.wifi_off, color: AppColors.textLight, size: 48),
+          const SizedBox(height: 12),
+          const Text('Map unavailable', style: TextStyle(
+              color: AppColors.textDark, fontSize: 16,
+              fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          const Text('Check your internet connection',
+              style: TextStyle(color: AppColors.textMid, fontSize: 13)),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: onRetry,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(color: AppColors.blue,
+                  borderRadius: BorderRadius.circular(20)),
+              child: const Text('Retry', style: TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w700)))),
+        ])),
+    ])),
+  );
 }
