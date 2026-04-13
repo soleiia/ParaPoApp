@@ -1,37 +1,46 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+// Use a PREFIX so Dart always calls sqflite's native APIs on Android/iOS,
+// never sqflite_common_ffi's versions. This prevents the "databaseFactory
+// not initialized" crash on Android.
+import 'package:sqflite/sqflite.dart' as sq;
+// Only pull the two desktop-init symbols from sqflite_common_ffi.
+import 'package:sqflite_common_ffi/sqflite_ffi.dart'
+    show sqfliteFfiInit, databaseFactoryFfi;
 import 'package:path/path.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._internal();
-  static Database? _db;
+  static sq.Database? _db;
 
   DatabaseHelper._internal();
 
-  Future<Database> get database async {
+  Future<sq.Database> get database async {
     if (_db != null) return _db!;
     _db = await _initDb();
     return _db!;
   }
 
-  Future<Database> _initDb() async {
+  Future<sq.Database> _initDb() async {
     if (!kIsWeb &&
         (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      // Desktop: use sqflite_common_ffi (pure Dart FFI — no native plugin)
       sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
+      sq.databaseFactory = databaseFactoryFfi;
     }
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'para_po_v3.db');
-    return await openDatabase(
+    // Android & iOS: sq.getDatabasesPath() uses sqflite's native plugin.
+    // Desktop: databaseFactoryFfi was set above, sq.openDatabase routes through it.
+    final dbPath = await sq.getDatabasesPath();
+    final path = join(dbPath, 'para_po_v4.db');
+    return await sq.openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
-  Future<void> _onUpgrade(Database db, int oldV, int newV) async {
+  Future<void> _onUpgrade(sq.Database db, int oldV, int newV) async {
     // Drop all tables and recreate fresh on any schema change
     for (final t in ['transportation', 'routes', 'terminals', 'zones', 'settings']) {
       await db.execute('DROP TABLE IF EXISTS $t');
@@ -39,7 +48,7 @@ class DatabaseHelper {
     await _onCreate(db, newV);
   }
 
-  Future<void> _onCreate(Database db, int version) async {
+  Future<void> _onCreate(sq.Database db, int version) async {
     // ── Transportation ────────────────────────────────────────────────────────
     await db.execute('''
       CREATE TABLE transportation (
@@ -95,15 +104,15 @@ class DatabaseHelper {
     await _seedData(db);
   }
 
-  Future<void> _seedData(Database db) async {
+  Future<void> _seedData(sq.Database db) async {
     // ── Settings ──────────────────────────────────────────────────────────────
     await db.insert('settings', {'key': 'admin_pin', 'value': '1234'});
 
     // ── TRANSPORTATION (4 types only) ─────────────────────────────────────────
     for (final t in [
-      {'name': 'Tricycle',              'fare': 13.00, 'active': 1, 'emoji': '🛺'},
-      {'name': 'E-Tricycle',            'fare': 13.00, 'active': 1, 'emoji': '🛵'},
-      {'name': 'Jeepney (Traditional)', 'fare': 14.00, 'active': 1, 'emoji': '🚙'},
+      {'name': 'Tricycle',              'fare': 17.00, 'active': 1, 'emoji': '🛺'},
+      {'name': 'E-Tricycle',            'fare': 17.00, 'active': 1, 'emoji': '🛵'},
+      {'name': 'Jeepney (Traditional)', 'fare': 15.00, 'active': 1, 'emoji': '🚙'},
       {'name': 'Jeepney (Modern)',      'fare': 17.00, 'active': 1, 'emoji': '🚌'},
     ]) {
       await db.insert('transportation', t);
@@ -117,42 +126,42 @@ class DatabaseHelper {
         'transport_type': 'Jeepney (Traditional)',
         'origin':      'Cabuyao City Hall (Poblacion)',
         'destination': 'Bigaa Junction',
-        'fare': 14.00,
+        'fare': 15.00,
         'via': 'National Highway (AH-26)',
       },
       {
         'transport_type': 'Jeepney (Traditional)',
         'origin':      'Cabuyao City Hall (Poblacion)',
         'destination': 'Marinig',
-        'fare': 14.00,
+        'fare': 15.00,
         'via': 'National Highway (AH-26)',
       },
       {
         'transport_type': 'Jeepney (Traditional)',
         'origin':      'Cabuyao City Hall (Poblacion)',
         'destination': 'Niugan / Nestlé Gate',
-        'fare': 14.00,
+        'fare': 15.00,
         'via': 'National Highway (AH-26)',
       },
       {
         'transport_type': 'Jeepney (Traditional)',
         'origin':      'Cabuyao City Hall (Poblacion)',
         'destination': 'Pittland / LISP I',
-        'fare': 14.00,
+        'fare': 15.00,
         'via': 'National Highway (AH-26)',
       },
       {
         'transport_type': 'Jeepney (Traditional)',
         'origin':      'Cabuyao City Hall (Poblacion)',
         'destination': 'Pulo / Diezmo Road Junction',
-        'fare': 14.00,
+        'fare': 15.00,
         'via': 'National Highway (AH-26)',
       },
       {
         'transport_type': 'Jeepney (Traditional)',
         'origin':      'Cabuyao City Hall (Poblacion)',
         'destination': 'Sala / Asia Brewery',
-        'fare': 14.00,
+        'fare': 15.00,
         'via': 'National Highway (AH-26)',
       },
       {
@@ -194,7 +203,7 @@ class DatabaseHelper {
         'transport_type': 'Jeepney (Traditional)',
         'origin':      'Mamatid Terminal',
         'destination': 'Cabuyao City Hall (Poblacion)',
-        'fare': 14.00,
+        'fare': 15.00,
         'via': 'Mamatid Road',
       },
       {
@@ -775,6 +784,6 @@ class DatabaseHelper {
   Future<void> setSetting(String key, String value) async {
     final db = await database;
     await db.insert('settings', {'key': key, 'value': value},
-        conflictAlgorithm: ConflictAlgorithm.replace);
+        conflictAlgorithm: sq.ConflictAlgorithm.replace);
   }
 }

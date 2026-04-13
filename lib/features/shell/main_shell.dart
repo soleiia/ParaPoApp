@@ -46,7 +46,20 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutCubic));
     _fadeAnim  = Tween<double>(begin: 0, end: 1)
         .animate(CurvedAnimation(parent: _ctrl, curve: const Interval(0.4, 1.0)));
-    _ctrl.value = 1.0;
+    // Start collapsed on narrow screens (phones), expanded on wide screens (desktop/tablet)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final screenW = MediaQuery.of(context).size.width;
+      if (screenW < 600) {
+        // Phone: start collapsed to give more map space
+        _expanded = false;
+        _ctrl.value = 0.0;
+      } else {
+        // Tablet / desktop: start expanded
+        _expanded = true;
+        _ctrl.value = 1.0;
+      }
+      setState(() {});
+    });
     AppState.instance.addListener(_onStateChange);
   }
 

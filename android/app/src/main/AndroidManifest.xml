@@ -1,34 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Location permissions -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- REQUIRED: lets the app load map tiles and directions from the internet -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Lets the app detect whether the device is online -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
     <application
         android:label="Para Po"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
-
-        <!-- Google Maps API key -->
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyAAgbRaqy3p9bCa87GA00Dj3tcLrZnwB0g"/> 
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="false">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-
             <meta-data
-                android:name="io.flutter.embedding.android.NormalTheme"
-                android:resource="@style/NormalTheme"/>
-
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"/>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -39,4 +34,7 @@
             android:name="flutterEmbedding"
             android:value="2"/>
     </application>
+
+    <!-- flutter_map / OpenStreetMap: tiles load over HTTPS, no extra config needed -->
+    <!-- If map still doesn't load, check device has mobile data or WiFi turned on -->
 </manifest>

@@ -10,7 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
-  sqflite_common_ffi: ^2.3.3
+  sqflite: ^2.3.2              # native SQLite for Android & iOS
+  sqflite_common_ffi: ^2.3.3  # FFI SQLite for Windows / Linux / macOS
   path: ^1.9.0
   flutter_map: ^7.0.2
   latlong2: ^0.9.0
