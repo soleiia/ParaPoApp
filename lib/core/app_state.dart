@@ -26,12 +26,21 @@ class AppState extends ChangeNotifier {
   }
 
   // ── Pending route (set from Routes page → opens Map page) ─────────────────
-  // Stores origin + destination text for the map input fields.
-  // Routes no longer carry lat/lng — OSRM geocodes from text or we search DB.
-  String? _pendingOrigin;
-  String? _pendingDestination;
-  String? get pendingOrigin      => _pendingOrigin;
-  String? get pendingDestination => _pendingDestination;
+  String?  _pendingOrigin;
+  String?  _pendingDestination;
+  double?  _pendingFare;
+  double?  _pendingOriginLat;
+  double?  _pendingOriginLng;
+  double?  _pendingDestLat;
+  double?  _pendingDestLng;
+
+  String?  get pendingOrigin      => _pendingOrigin;
+  String?  get pendingDestination => _pendingDestination;
+  double?  get pendingFare        => _pendingFare;
+  double?  get pendingOriginLat   => _pendingOriginLat;
+  double?  get pendingOriginLng   => _pendingOriginLng;
+  double?  get pendingDestLat     => _pendingDestLat;
+  double?  get pendingDestLng     => _pendingDestLng;
 
   bool get hasPendingRoute =>
       _pendingOrigin != null && _pendingDestination != null;
@@ -40,6 +49,11 @@ class AppState extends ChangeNotifier {
     if (route != null) {
       _pendingOrigin      = route.origin;
       _pendingDestination = route.destination;
+      _pendingFare        = route.fare;
+      _pendingOriginLat   = route.originLat;
+      _pendingOriginLng   = route.originLng;
+      _pendingDestLat     = route.destLat;
+      _pendingDestLng     = route.destLng;
     }
     _tabIndex = 0;
     notifyListeners();
@@ -48,6 +62,11 @@ class AppState extends ChangeNotifier {
   void clearPendingRoute() {
     _pendingOrigin      = null;
     _pendingDestination = null;
+    _pendingFare        = null;
+    _pendingOriginLat   = null;
+    _pendingOriginLng   = null;
+    _pendingDestLat     = null;
+    _pendingDestLng     = null;
     // No notifyListeners — called internally by the map page
   }
 }

@@ -99,7 +99,12 @@ class RouteModel {
   final String origin;
   final String destination;
   final double fare;
-  final String via; // route description / road taken
+  final String via;
+  // Real GPS coordinates for pins and routing
+  final double originLat;
+  final double originLng;
+  final double destLat;
+  final double destLng;
 
   const RouteModel({
     this.id,
@@ -108,11 +113,18 @@ class RouteModel {
     required this.destination,
     required this.fare,
     this.via = '',
+    this.originLat = 14.2724,
+    this.originLng = 121.1241,
+    this.destLat   = 14.2724,
+    this.destLng   = 121.1241,
   });
 
   /// Returns fare after applying 20% LTFRB discount if [discounted] is true.
   double fareFor(bool discounted) =>
       discounted ? (fare * 0.80) : fare;
+
+  AppLatLng get originLatLng => AppLatLng(originLat, originLng);
+  AppLatLng get destLatLng   => AppLatLng(destLat, destLng);
 
   factory RouteModel.fromMap(Map<String, dynamic> m) => RouteModel(
     id:            m['id']             as int?,
@@ -121,6 +133,10 @@ class RouteModel {
     destination:   m['destination']    as String,
     fare:          (m['fare']          as num).toDouble(),
     via:           m['via']            as String? ?? '',
+    originLat:     (m['origin_lat']    as num? ?? 14.2724).toDouble(),
+    originLng:     (m['origin_lng']    as num? ?? 121.1241).toDouble(),
+    destLat:       (m['dest_lat']      as num? ?? 14.2724).toDouble(),
+    destLng:       (m['dest_lng']      as num? ?? 121.1241).toDouble(),
   );
 
   Map<String, dynamic> toMap() => {
@@ -130,6 +146,10 @@ class RouteModel {
     'destination':    destination,
     'fare':           fare,
     'via':            via,
+    'origin_lat':     originLat,
+    'origin_lng':     originLng,
+    'dest_lat':       destLat,
+    'dest_lng':       destLng,
   };
 }
 

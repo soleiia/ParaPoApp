@@ -28,7 +28,8 @@ class _MapPageState extends State<MapPage> {
   DirectionsResult? _directions;
   AppLatLng? _originPin;
   AppLatLng? _destPin;
-  String _errorMsg = '';
+  String _errorMsg  = '';
+  double _selectedFare = 0.0;  // actual fare from the selected route
 
   // All unique places loaded from DB
   List<String> _allPlaces   = [];
@@ -156,14 +157,23 @@ class _MapPageState extends State<MapPage> {
 
   void _checkPendingRoute() {
     if (!AppState.instance.hasPendingRoute) return;
-    final origin = AppState.instance.pendingOrigin!;
-    final dest   = AppState.instance.pendingDestination!;
+    final origin    = AppState.instance.pendingOrigin!;
+    final dest      = AppState.instance.pendingDestination!;
+    final fare      = AppState.instance.pendingFare ?? 0.0;
+    final oLat      = AppState.instance.pendingOriginLat;
+    final oLng      = AppState.instance.pendingOriginLng;
+    final dLat      = AppState.instance.pendingDestLat;
+    final dLng      = AppState.instance.pendingDestLng;
     AppState.instance.clearPendingRoute();
     setState(() {
       _fromCtrl.text = origin;
       _toCtrl.text   = dest;
-      _fromActive = false;
-      _toActive   = false;
+      _selectedFare  = fare;
+      _fromActive    = false;
+      _toActive      = false;
+      // Pre-set pins from the route's stored coordinates
+      if (oLat != null && oLng != null) _originPin = AppLatLng(oLat, oLng);
+      if (dLat != null && dLng != null) _destPin   = AppLatLng(dLat, dLng);
     });
     _startNavigation();
   }
@@ -187,15 +197,20 @@ class _MapPageState extends State<MapPage> {
     AppLatLng? origin = _originPin;
     AppLatLng? dest   = _destPin;
 
+    // If no pins yet, look up the route in DB to get real coordinates + fare
     if (origin == null || dest == null) {
       final routes = await _routeRepo.search(from);
       final match  = routes.where((r) =>
           r.destination.toLowerCase().contains(to.toLowerCase()))
           .firstOrNull;
       if (match != null) {
-        origin = const AppLatLng(14.2724, 121.1241);
-        dest   = const AppLatLng(14.2100, 121.1639);
-        setState(() { _originPin = origin; _destPin = dest; });
+        origin = match.originLatLng;
+        dest   = match.destLatLng;
+        setState(() {
+          _originPin    = origin;
+          _destPin      = dest;
+          _selectedFare = match.fare;
+        });
       }
     }
 
@@ -226,13 +241,14 @@ class _MapPageState extends State<MapPage> {
 
   void _clearRoute() {
     setState(() {
-      _showSheet  = false;
-      _directions = null;
-      _originPin  = null;
-      _destPin    = null;
-      _errorMsg   = '';
-      _fromActive = false;
-      _toActive   = false;
+      _showSheet    = false;
+      _directions   = null;
+      _originPin    = null;
+      _destPin      = null;
+      _errorMsg     = '';
+      _fromActive   = false;
+      _toActive     = false;
+      _selectedFare = 0.0;
     });
     _fromCtrl.clear();
     _toCtrl.clear();
@@ -431,9 +447,10 @@ class _MapPageState extends State<MapPage> {
         if (_showSheet && _directions != null)
           Positioned(bottom: 0, left: 0, right: 0,
             child: _RouteSheet(
-              directions: _directions!,
-              fromText: _fromCtrl.text,
-              toText:   _toCtrl.text,
+              directions:   _directions!,
+              fromText:     _fromCtrl.text,
+              toText:       _toCtrl.text,
+              selectedFare: _selectedFare,
               onClose: _clearRoute,
               onShare: () => ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Route shared!'),
@@ -717,12 +734,14 @@ class _FloatBtn extends StatelessWidget {
 class _RouteSheet extends StatefulWidget {
   final DirectionsResult directions;
   final String fromText, toText;
+  final double selectedFare;
   final VoidCallback onClose, onShare, onSave;
 
   const _RouteSheet({
     required this.directions,
     required this.fromText,
     required this.toText,
+    required this.selectedFare,
     required this.onClose,
     required this.onShare,
     required this.onSave,
@@ -811,15 +830,17 @@ class _RouteSheetState extends State<_RouteSheet> {
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 ListenableBuilder(listenable: AppState.instance,
                     builder: (_, __) {
-                  const base = 14.0;
-                  final fare = AppState.instance.isDiscounted
-                      ? base * 0.80 : base;
+                  // Use the actual route fare, or show "See route" if unknown
+                  final base = widget.selectedFare > 0 ? widget.selectedFare : null;
+                  final fare = base != null
+                      ? (AppState.instance.isDiscounted ? base * 0.80 : base)
+                      : null;
                   return Column(
                       crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text('₱${fare.toStringAsFixed(2)}',
+                    Text(fare != null ? '₱${fare.toStringAsFixed(2)}' : '—',
                         style: const TextStyle(color: Colors.white,
                             fontWeight: FontWeight.w800, fontSize: 20)),
-                    if (AppState.instance.isDiscounted)
+                    if (AppState.instance.isDiscounted && fare != null)
                       const Text('20% OFF', style: TextStyle(
                           color: AppColors.yellow, fontSize: 10,
                           fontWeight: FontWeight.w700)),
